@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% block title %}My Orders{% endblock %}
+
+{% block content %}
+<style>
+    .orders-shell {
+        padding: 2.5rem 0 3rem;
+        background: linear-gradient(180deg, #f8f3ea 0%, #ffffff 100%);
+        min-height: calc(100vh - 76px);
+    }
+
+    .orders-panel {
+        background: #ffffff;
+        border-radius: 1.4rem;
+        border: 1px solid rgba(82, 52, 16, 0.1);
+        box-shadow: 0 14px 32px rgba(64, 39, 10, 0.08);
+        overflow: hidden;
+    }
+
+    .orders-panel-header {
+        padding: 1.6rem;
+        background: linear-gradient(135deg, #1d3557 0%, #355070 100%);
+        color: #ffffff;
+    }
+
+    .orders-list {
+        padding: 1rem;
+    }
+
+    .order-history-card {
+        border: 1px solid #ebe4d9;
+        border-radius: 1rem;
+        padding: 1.1rem 1.2rem;
+        background: #fffdf9;
+        transition: transform .2s ease, box-shadow .2s ease;
+    }
+
+    .order-history-card + .order-history-card {
+        margin-top: 1rem;
+    }
+
+    .order-history-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 22px rgba(0, 0, 0, 0.08);
+    }
+
+    .status-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.4rem 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.74rem;
+        letter-spacing: 0.02em;
+    }
+
+    .status-chip.pending { background-color: #fff7d6; color: #af8f00; }
+    .status-chip.accepted { background-color: #dbe9ff; color: #0f4d9f; }
+    .status-chip.preparing { background-color: #d3efff; color: #075985; }
+    .status-chip.ready { background-color: #d7f5e9; color: #0f7f52; }
+    .status-chip.completed { background-color: #d4f4ff; color: #105b8b; }
+    .status-chip.cancelled { background-color: #ffd8de; color: #8b1b26; }
+
+    .orders-empty {
+        padding: 2.5rem;
+        text-align: center;
+    }
+</style>
+
+<div class="orders-shell">
+    <div class="container">
+        <div class="orders-panel">
+            <div class="orders-panel-header d-flex flex-wrap justify-content-between align-items-end gap-3">
+                <div>
+                    <h1 class="h3 mb-1">My orders</h1>
+                    <p class="mb-0 opacity-75">Review every placed order and open any order for live status details.</p>
+                </div>
+                <a href="/menu/" class="btn btn-warning">Order more food</a>
+            </div>
+
+            {% if orders %}
+            <div class="orders-list">
+                {% for order in orders %}
+                <div class="order-history-card">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                        <div>
+                            <h2 class="h5 mb-1">Order #{{ order.id }}</h2>
+                            <div class="text-muted small">{{ order.created_at|date:'d M Y H:i' }} &middot; {{ order.item_count }} item{{ order.item_count|pluralize }}</div>
+                        </div>
+                        <span class="status-chip {% if order.status == 'pending' %}pending{% elif order.status == 'accepted' %}accepted{% elif order.status == 'preparing' %}preparing{% elif order.status == 'ready' %}ready{% elif order.status == 'completed' %}completed{% else %}cancelled{% endif %}">{{ order.get_status_display }}</span>
+                    </div>
+
+                    <div class="row g-3 align-items-center">
+                        <div class="col-lg-8">
+                            <div class="fw-semibold mb-1">Items</div>
+                            <div class="text-muted small">
+                                {% for item in order.items.all %}
+                                    {{ item.menu_item.name }} x{{ item.quantity }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="col-lg-2">
+                            <div class="small text-muted">Total</div>
+                            <div class="fw-bold">Rs. {{ order.grand_total }}</div>
+                        </div>
+                        <div class="col-lg-2">
+                            <a href="/orders/{{ order.id }}/" class="btn btn-outline-dark w-100">Open</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="orders-empty">
+                <h2 class="h4 mb-2">No orders yet</h2>
+                <p class="text-muted mb-3">Place your first order and this page will keep the full history.</p>
+                <a href="/menu/" class="btn btn-warning">Browse menu</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

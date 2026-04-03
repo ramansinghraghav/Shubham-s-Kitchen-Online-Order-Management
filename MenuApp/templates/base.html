@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+Da+2:wght@600;800&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>{% block title %}My Restaurant{% endblock %}</title>
+</head>
+
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <div class="container">
+
+    <!-- Logo -->
+    <a class="navbar-brand fw-bold" href="/">Shubham's Kitchen</a>
+    {% if request.path|slice:"0:5" != '/cook' %}
+    <a class="btn btn-warning btn-sm rounded-pill ms-3" href="/cart/">
+      Cart
+      <span id="nav-cart-count" class="badge text-bg-dark ms-1">{{ nav_cart_count }}</span>
+    </a>
+    {% endif %}
+
+    <!-- LEFT SIDE OPTIONS (ALWAYS VISIBLE) -->
+    <ul class="navbar-nav flex-row gap-3 ms-3">
+      {% if request.path|slice:":5" == '/cook' and user.is_staff %}
+      <li class="nav-item">
+        <a class="nav-link text-white" href="/cook/orders/">Cook Dashboard</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link text-white" href="/cook/orders/history/">Order History</a>
+      </li>
+      {% else %}
+      <li class="nav-item">
+        <a class="nav-link text-white" href="/">Home</a>
+      </li>
+      {% if user.is_authenticated %}
+      <li class="nav-item">
+        <a class="nav-link text-white" href="/menu/">Menu</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link text-white" href="/orders/">Orders</a>
+      </li>
+      {% endif %}
+      {% endif %}
+    </ul>
+
+    <!-- RIGHT SIDE TOGGLER -->
+    <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#rightMenu">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <!-- RIGHT SIDE MENU (INSIDE TOGGLER) -->
+    <div class="collapse navbar-collapse justify-content-end" id="rightMenu">
+      <ul class="navbar-nav">
+
+        {% if user.is_authenticated %}
+          <li class="nav-item d-flex align-items-center me-2">
+            <img src="{% if nav_profile %}{{ nav_profile.photo_url }}{% else %}https://ui-avatars.com/api/?name={{ user.username }}&background=ffb700&color=000000&size=32{% endif %}"
+                 alt="Profile" class="rounded-circle" style="width:30px;height:30px;object-fit:cover;" />
+          </li>
+
+          {% if user.is_staff %}
+          <li class="nav-item">
+            <a class="nav-link" href="/cook/orders/">Cook Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/cook/orders/history/">Order History</a>
+          </li>
+          {% endif %}
+
+          {% if request.path|slice:"0:5" != '/cook' %}
+          <li class="nav-item">
+            <a class="nav-link" href="/services/">Services</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="/profile/">Profile</a>
+          </li>
+          {% endif %}
+
+          <li class="nav-item">
+            <a class="nav-link" href="/contact/">Contact Us</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="/logout/">Logout</a>
+          </li>
+        {% else %}
+          <li class="nav-item">
+            <a class="nav-link" href="/profile/?mode=signup">Sign up</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="/profile/?mode=login">Login</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="/contact/">Contact Us</a>
+          </li>
+        {% endif %}
+
+      </ul>
+    </div>
+
+  </div>
+</nav>
+
+<div class="container mt-3">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+</div>
+
+{% block content %} {% endblock %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>

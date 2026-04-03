@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+
+<style>
+    .menu-card-img {
+        height: 260px;
+        width: 100%;
+        object-fit: cover;
+        border-top-left-radius: 0.75rem;
+        border-top-right-radius: 0.75rem;
+    }
+
+    .hero-bg {
+        background: linear-gradient(rgba(32, 18, 8, 0.6), rgba(32, 18, 8, 0.35)), url('https://images.unsplash.com/photo-1504754524776-8f4f37790ca0?auto=format&fit=crop&w=1350&q=80') no-repeat center/cover;
+        min-height: 65vh;
+        display: flex;
+        align-items: center;
+        color: #fff;
+    }
+
+    .hero-overlay {
+        backdrop-filter: blur(1px);
+    }
+
+    .luxury-stats .stat-card {
+        background: #f8f5f2;
+        border-radius: 1rem;
+        border: 1px solid #ece6e2;
+    }
+
+    .luxury-cta {
+        background: linear-gradient(120deg, #f8efd8 0%, #f5dbc1 100%);
+        color: #4b2e1a;
+        min-height: 100px;
+    }
+
+    .luxury-cta a {
+        border-radius: 999px;
+        letter-spacing: .05rem;
+    }
+
+    .menu-card-img {
+        height: 220px;
+        width: 100%;
+        object-fit: cover;
+        border-top-left-radius: 0.75rem;
+        border-top-right-radius: 0.75rem;
+    }
+
+    .card .card-body h5 {
+        color: #5a3d1e;
+        font-weight: 700;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .cafe-tagline {
+        letter-spacing: 0.05em;
+        font-weight: 600;
+        color: #a35e0b;
+    }
+</style>
+
+<!-- 🎯 Hero Section -->
+<section class="hero-bg hero-overlay">
+    <div class="container text-center py-5">
+        <h1 class="display-4 fw-bold" style="letter-spacing: 0.06em; font-family: 'Baloo Da 2', cursive;">Shubham's Kitchen</h1>
+        <p class="lead mb-4" style="font-family: 'Segoe UI', sans-serif;">Taste of home with a touch of café comfort.</p>
+        <a href="/menu/" class="btn btn-warning btn-lg px-5">Explore Menu</a>
+    </div>
+</section>
+
+<section class="container mt-5 text-center">
+    <p class="text-uppercase text-muted mb-2" style="letter-spacing:.12rem;">Warm, Friendly, Local</p>
+    <h2 class="mb-4" style="color:#5f3f1e;">Your neighborhood dhaba meets café</h2>
+    <p class="mx-auto" style="max-width: 760px; color: #444; font-size: 1.05rem;">Homely Indian dishes, chai moments, quick brunch plates, and desi snacks for every budget. No fuss, pure taste, and always fresh.</p>
+</section>
+
+<section class="container luxury-cta py-5 rounded-4 mt-4">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h3>जितना सस्ता उतना बढ़िया, हर दिन बने खास</h3>
+            <p>अगर आपका मन लगे चाय-संभर की या घर जैसा स्वाद, यहाँ हर प्लेट में घर का प्यार मिलेगा।</p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <a class="btn btn-light btn-lg" href="/menu/">देखिए आज का स्पेशल</a>
+        </div>
+    </div>
+</section>
+
+<section class="container mt-5">
+    <h2 class="mb-4">A: Aloo Paratha, B: Bhaji Pav, C: Chai</h2>
+    <p class="text-muted">हर अक्षर, हर स्वाद के लिए तैयार।</p>
+</section>
+
+{% endblock %}

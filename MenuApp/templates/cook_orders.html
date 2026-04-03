@@ -1,0 +1,272 @@
+{% extends 'base.html' %}
+{% block title %}Cook Orders{% endblock %}
+
+{% block content %}
+<style>
+    .cook-shell { padding: 2.5rem 0; }
+    .cook-card { background: #ffffff; border-radius: 1.2rem; box-shadow: 0 12px 26px rgba(0,0,0,.08); border: 1px solid #dee2e6; transition: transform .2s ease, box-shadow .2s ease; }
+    .cook-card:hover { transform: translateY(-3px); box-shadow: 0 16px 30px rgba(0,0,0,.15); }
+    .cook-card.pending { border-left: 6px solid #ffc107; }
+    .cook-card.accepted { border-left: 6px solid #0d6efd; }
+    .cook-card.preparing { border-left: 6px solid #1982c4; }
+    .cook-card.ready { border-left: 6px solid #198754; }
+    .cook-card.completed { border-left: 6px solid #20c997; }
+    .cook-card.cancelled { border-left: 6px solid #dc3545; }
+    .cook-card-header { padding: 1rem 1.25rem; border-bottom: 1px solid #e9ecef; background: linear-gradient(135deg, #f8fafc 0%, #e9f1ff 100%); border-top-left-radius: 1.2rem; border-top-right-radius: 1.2rem; }
+    .cook-card-body { padding: 1.25rem; }
+    .status-pill { border-radius: 50rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; padding: 0.3rem 0.7rem; }
+    .status-pending { background-color: #fff3cd; color: #856404; }
+    .status-accepted { background-color: #cfe2ff; color: #084298; }
+    .status-preparing { background-color: #d3efff; color: #075985; }
+    .status-ready { background-color: #d1e7dd; color: #0f5132; }
+    .status-completed { background-color: #d1e7dd; color: #0f5132; }
+    .status-cancelled { background-color: #f8d7da; color: #842029; }
+    .order-meta { font-size: 0.88rem; color: #6c757d; }
+    .order-value { font-size: 0.98rem; font-weight: 700; }
+    .order-line { border-top: 1px solid #e9ecef; margin-top: 0.8rem; padding-top: 0.75rem; }
+    .cook-action-panel { border-top: 1px solid #e9ecef; margin-top: 1rem; padding-top: 1rem; }
+    .cook-panel-title { font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #6c757d; margin-bottom: .65rem; }
+    .action-form-inline { display: flex; gap: .75rem; flex-wrap: wrap; align-items: end; }
+    .call-action { display: inline-flex; align-items: center; gap: .45rem; }
+    .call-action svg { width: 1rem; height: 1rem; fill: currentColor; }
+</style>
+
+<div class="container cook-shell">
+    <div class="row g-3 mb-4">
+        <div class="col-md-6 col-xl-3">
+            <div class="card border-primary bg-primary bg-opacity-10">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-primary mb-1">Today orders</h6>
+                            <h3 class="mb-0">{{ today_count }}</h3>
+                        </div>
+                        <span class="fs-2 text-primary">📦</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card border-success bg-success bg-opacity-10">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-success mb-1">Today value</h6>
+                            <h3 class="mb-0">Rs. {{ today_value }}</h3>
+                        </div>
+                        <span class="fs-2 text-success">💰</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-12 col-xl-6">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <h1 class="h3 mb-0">Cook Dashboard</h1>
+                    <small class="text-muted">Showing only today's orders</small>
+                </div>
+                <a href="/cook/orders/history/" class="btn btn-outline-dark btn-sm">Order history</a>
+            </div>
+            <small>Auto-refresh every 20s</small>
+            <meta http-equiv="refresh" content="20">
+        </div>
+    </div>
+
+    {% for order in orders %}
+    <div class="cook-card mb-4 {% if order.status == 'pending' %}pending{% elif order.status == 'accepted' %}accepted{% elif order.status == 'preparing' %}preparing{% elif order.status == 'ready' %}ready{% elif order.status == 'completed' %}completed{% else %}cancelled{% endif %}">
+        <div class="cook-card-header d-flex justify-content-between align-items-start">
+            <div>
+                <h2 class="h5 mb-1">Order #{{ order.id }}</h2>
+                <div class="order-meta">{{ order.created_at|date:'d M Y H:i' }} • {{ order.items.count }} item{{ order.items.count|pluralize }}</div>
+            </div>
+            <span class="status-pill {% if order.status == 'pending' %}status-pending{% elif order.status == 'accepted' %}status-accepted{% elif order.status == 'preparing' %}status-preparing{% elif order.status == 'ready' %}status-ready{% elif order.status == 'completed' %}status-completed{% else %}status-cancelled{% endif %}">{{ order.get_status_display }}</span>
+        </div>
+
+        <div class="cook-card-body">
+            <div class="row g-3 mb-2">
+                <div class="col-md-6 order-meta"><strong>Receiver:</strong> {{ order.receiver_name }}</div>
+                <div class="col-md-6 order-meta"><strong>Phone:</strong> <a href="tel:{{ order.receiver_phone }}" class="call-action"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.654 1.328a.678.678 0 0 1 .737-.145l2.522 1.01c.294.118.445.44.35.743l-.547 1.75a.68.68 0 0 1-.645.48c-.15 0-.296-.05-.417-.142l-1.14-.855a11.72 11.72 0 0 0 5.516 5.516l.855-1.14a.68.68 0 0 1 .48-.645l1.75-.547a.678.678 0 0 1 .743.35l1.01 2.522a.678.678 0 0 1-.145.737l-1.2 1.2a1.745 1.745 0 0 1-1.808.42c-2.882-.96-5.53-3.607-6.49-6.49a1.745 1.745 0 0 1 .42-1.808z"/></svg><span>{{ order.receiver_phone }}</span></a></div>
+                <div class="col-12 order-meta"><strong>Address:</strong> {{ order.receiver_address }}</div>
+            </div>
+
+            {% if order.cook_prep_end and order.cook_prep_started_at and order.status != 'completed' and order.status != 'cancelled' %}
+            <div class="mb-3">
+                <div class="small text-secondary mb-1">Prep ETA</div>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-success">{{ order.cook_prep_label }}</span>
+                    <strong class="cook-prep-countdown" data-start-time="{{ order.cook_prep_started_at|date:'c' }}" data-end-time="{{ order.cook_prep_end|date:'c' }}">Calculating...</strong>
+                </div>
+                <div class="progress" style="height: 8px;">
+                    <div class="progress-bar cook-progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar" style="width: 0%"></div>
+                </div>
+            </div>
+            {% elif order.status == 'completed' %}
+            <div class="mb-3">
+                <div class="small text-success">Order delivered.</div>
+            </div>
+            {% elif order.status == 'cancelled' %}
+            <div class="mb-3">
+                <div class="small text-danger">Order cancelled.</div>
+            </div>
+            {% elif order.cook_prep_label %}
+            <div class="mb-3">
+                <div class="small text-secondary mb-1">Prep time assigned</div>
+                <span class="text-success">{{ order.cook_prep_label }}</span>
+            </div>
+            {% endif %}
+
+            <div class="order-line">
+                <p class="mb-2 fw-bold">Items</p>
+                <ul class="list-group list-group-flush small">
+                    {% for item in order.items.all %}
+                    <li class="list-group-item px-0 py-1 d-flex justify-content-between align-items-center">
+                        <span>{{ item.menu_item.name }} x{{ item.quantity }}</span>
+                        <span class="order-value">Rs. {{ item.line_total }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <div class="order-meta">Subtotal: Rs. {{ order.subtotal }} &middot; Delivery: Rs. {{ order.delivery_fee }}</div>
+                <div class="order-value">Total: Rs. {{ order.grand_total }}</div>
+            </div>
+
+            <div class="mt-3">
+                <a href="tel:{{ order.receiver_phone }}" class="btn btn-outline-success btn-sm call-action">
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M3.654 1.328a.678.678 0 0 1 .737-.145l2.522 1.01c.294.118.445.44.35.743l-.547 1.75a.68.68 0 0 1-.645.48c-.15 0-.296-.05-.417-.142l-1.14-.855a11.72 11.72 0 0 0 5.516 5.516l.855-1.14a.68.68 0 0 1 .48-.645l1.75-.547a.678.678 0 0 1 .743.35l1.01 2.522a.678.678 0 0 1-.145.737l-1.2 1.2a1.745 1.745 0 0 1-1.808.42c-2.882-.96-5.53-3.607-6.49-6.49a1.745 1.745 0 0 1 .42-1.808z"/>
+                    </svg>
+                    <span>Call customer</span>
+                </a>
+            </div>
+
+            <div class="cook-action-panel">
+                <div class="cook-panel-title">Cook actions</div>
+
+                {% if order.status == 'pending' %}
+                <form method="post" class="action-form-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="order_id" value="{{ order.id }}">
+                    <input type="hidden" name="action" value="accept">
+                    <div>
+                        <label class="form-label">Prep time</label>
+                        <select name="prep_minutes" class="form-select" required>
+                            <option value="">Choose time</option>
+                            {% for minutes in initial_prep_options %}
+                            <option value="{{ minutes }}">{{ minutes }} min</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-primary">Accept</button>
+                    </div>
+                </form>
+                {% elif order.status == 'accepted' %}
+                <div class="d-flex flex-wrap gap-2">
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="order_id" value="{{ order.id }}">
+                        <input type="hidden" name="action" value="start_preparing">
+                        <button type="submit" class="btn btn-primary">Preparation started</button>
+                    </form>
+                    {% for minutes in extra_prep_options %}
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="order_id" value="{{ order.id }}">
+                        <input type="hidden" name="action" value="add_time">
+                        <input type="hidden" name="extra_minutes" value="{{ minutes }}">
+                        <button type="submit" class="btn btn-outline-primary">Add {{ minutes }} min</button>
+                    </form>
+                    {% endfor %}
+                </div>
+                {% elif order.status == 'preparing' %}
+                <div class="d-flex flex-wrap gap-2">
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="order_id" value="{{ order.id }}">
+                        <input type="hidden" name="action" value="ready">
+                        <button type="submit" class="btn btn-success">Ready for pickup</button>
+                    </form>
+                    {% for minutes in extra_prep_options %}
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="order_id" value="{{ order.id }}">
+                        <input type="hidden" name="action" value="add_time">
+                        <input type="hidden" name="extra_minutes" value="{{ minutes }}">
+                        <button type="submit" class="btn btn-outline-primary">Add {{ minutes }} min</button>
+                    </form>
+                    {% endfor %}
+                </div>
+                {% elif order.status == 'ready' %}
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="order_id" value="{{ order.id }}">
+                    <input type="hidden" name="action" value="delivered">
+                    <button type="submit" class="btn btn-dark">Delivered</button>
+                </form>
+                {% else %}
+                <div class="order-meta">No further cook actions for this order.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="alert alert-info">No orders found yet.</div>
+    {% endfor %}
+</div>
+
+<script>
+function formatTime(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    return [h, m, s]
+        .map((v, i) => (i === 0 ? v : String(v).padStart(2, '0')))
+        .join(':');
+}
+
+function startCookCountdown(elements) {
+    const runs = [];
+    elements.forEach(element => {
+        const endTime = new Date(element.dataset.endTime).getTime();
+        const startTime = new Date(element.dataset.startTime).getTime();
+        const progressBar = element.closest('.cook-card-body').querySelector('.cook-progress-bar');
+
+        const update = () => {
+            const now = Date.now();
+            const totalSeconds = Math.max(1, Math.floor((endTime - startTime) / 1000));
+            const remainingSeconds = Math.max(0, Math.floor((endTime - now) / 1000));
+            const elapsedSeconds = Math.max(0, totalSeconds - remainingSeconds);
+            const percent = Math.min(100, Math.max(0, Math.round((elapsedSeconds / totalSeconds) * 100)));
+
+            if (remainingSeconds <= 0) {
+                element.textContent = 'Ready or overdue';
+                if (progressBar) {
+                    progressBar.style.width = '100%';
+                    progressBar.classList.remove('bg-info');
+                    progressBar.classList.add('bg-success');
+                }
+            } else {
+                element.textContent = `Remaining: ${formatTime(remainingSeconds)}`;
+                if (progressBar) {
+                    progressBar.style.width = `${percent}%`;
+                }
+            }
+        };
+
+        update();
+        runs.push(setInterval(update, 1000));
+    });
+
+    return runs;
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const countdownEls = document.querySelectorAll('.cook-prep-countdown');
+    if (countdownEls.length) {
+        startCookCountdown(countdownEls);
+    }
+});
+</script>
+{% endblock %}

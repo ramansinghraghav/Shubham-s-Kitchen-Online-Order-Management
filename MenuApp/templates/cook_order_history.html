@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}Cook Order History{% endblock %}
+
+{% block content %}
+<style>
+    .history-shell { padding: 2.5rem 0; }
+    .history-card { background: #ffffff; border-radius: 1.2rem; box-shadow: 0 12px 26px rgba(0,0,0,.08); border: 1px solid #dee2e6; }
+    .history-card + .history-card { margin-top: 1rem; }
+    .history-header { padding: 1.5rem; background: linear-gradient(135deg, #f7efe4 0%, #eef4fb 100%); border-radius: 1.2rem; border: 1px solid #dee2e6; margin-bottom: 1.5rem; }
+    .filter-chip { border-radius: 999px; padding: .5rem 1rem; text-decoration: none; border: 1px solid #ced4da; color: #212529; background: #fff; }
+    .filter-chip.active { background: #212529; color: #fff; border-color: #212529; }
+    .status-pill { border-radius: 50rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; padding: 0.3rem 0.7rem; }
+    .status-pending { background-color: #fff3cd; color: #856404; }
+    .status-accepted { background-color: #cfe2ff; color: #084298; }
+    .status-preparing { background-color: #d3efff; color: #075985; }
+    .status-ready { background-color: #d1e7dd; color: #0f5132; }
+    .status-completed { background-color: #d1e7dd; color: #0f5132; }
+    .status-cancelled { background-color: #f8d7da; color: #842029; }
+    .history-meta { font-size: 0.9rem; color: #6c757d; }
+    .history-value { font-size: 1rem; font-weight: 700; }
+    .call-action { display: inline-flex; align-items: center; gap: .45rem; }
+    .call-action svg { width: 1rem; height: 1rem; fill: currentColor; }
+</style>
+
+<div class="container history-shell">
+    <div class="history-header d-flex flex-wrap justify-content-between align-items-end gap-3">
+        <div>
+            <h1 class="h3 mb-1">Order History</h1>
+            <p class="mb-0 text-muted">Past orders are stored here. Today's orders stay on the cook dashboard.</p>
+        </div>
+        <a href="/cook/orders/" class="btn btn-outline-dark">Back to dashboard</a>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <a href="/cook/orders/history/?filter=week" class="filter-chip {% if active_filter == 'week' %}active{% endif %}">Week</a>
+        <a href="/cook/orders/history/?filter=month" class="filter-chip {% if active_filter == 'month' %}active{% endif %}">Month</a>
+        <a href="/cook/orders/history/?filter=year" class="filter-chip {% if active_filter == 'year' %}active{% endif %}">Year</a>
+    </div>
+
+    {% for order in orders %}
+    <div class="history-card p-4">
+        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+            <div>
+                <h2 class="h5 mb-1">Order #{{ order.id }}</h2>
+                <div class="history-meta">{{ order.created_at|date:'d M Y H:i' }} &middot; {{ order.item_count }} item{{ order.item_count|pluralize }}</div>
+            </div>
+            <span class="status-pill {% if order.status == 'pending' %}status-pending{% elif order.status == 'accepted' %}status-accepted{% elif order.status == 'preparing' %}status-preparing{% elif order.status == 'ready' %}status-ready{% elif order.status == 'completed' %}status-completed{% else %}status-cancelled{% endif %}">{{ order.get_status_display }}</span>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-4 history-meta"><strong>Receiver:</strong> {{ order.receiver_name }}</div>
+            <div class="col-md-4 history-meta"><strong>Phone:</strong> <a href="tel:{{ order.receiver_phone }}" class="call-action"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.654 1.328a.678.678 0 0 1 .737-.145l2.522 1.01c.294.118.445.44.35.743l-.547 1.75a.68.68 0 0 1-.645.48c-.15 0-.296-.05-.417-.142l-1.14-.855a11.72 11.72 0 0 0 5.516 5.516l.855-1.14a.68.68 0 0 1 .48-.645l1.75-.547a.678.678 0 0 1 .743.35l1.01 2.522a.678.678 0 0 1-.145.737l-1.2 1.2a1.745 1.745 0 0 1-1.808.42c-2.882-.96-5.53-3.607-6.49-6.49a1.745 1.745 0 0 1 .42-1.808z"/></svg><span>{{ order.receiver_phone }}</span></a></div>
+            <div class="col-md-4 history-meta"><strong>Total:</strong> <span class="history-value">Rs. {{ order.grand_total }}</span></div>
+        </div>
+
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div class="small text-muted">
+            {% for item in order.items.all %}
+                {{ item.menu_item.name }} x{{ item.quantity }}{% if not forloop.last %}, {% endif %}
+            {% endfor %}
+            </div>
+            <a href="tel:{{ order.receiver_phone }}" class="btn btn-outline-success btn-sm call-action">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M3.654 1.328a.678.678 0 0 1 .737-.145l2.522 1.01c.294.118.445.44.35.743l-.547 1.75a.68.68 0 0 1-.645.48c-.15 0-.296-.05-.417-.142l-1.14-.855a11.72 11.72 0 0 0 5.516 5.516l.855-1.14a.68.68 0 0 1 .48-.645l1.75-.547a.678.678 0 0 1 .743.35l1.01 2.522a.678.678 0 0 1-.145.737l-1.2 1.2a1.745 1.745 0 0 1-1.808.42c-2.882-.96-5.53-3.607-6.49-6.49a1.745 1.745 0 0 1 .42-1.808z"/>
+                </svg>
+                <span>Call customer</span>
+            </a>
+        </div>
+    </div>
+    {% empty %}
+    <div class="alert alert-info">No past orders found for this filter.</div>
+    {% endfor %}
+</div>
+{% endblock %}

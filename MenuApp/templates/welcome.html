@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% block title %}Welcome{% endblock %}
+
+{% block content %}
+<style>
+    body {
+        background:
+            radial-gradient(circle at top left, rgba(251, 191, 36, 0.16), transparent 24%),
+            radial-gradient(circle at bottom right, rgba(217, 119, 6, 0.12), transparent 28%),
+            linear-gradient(180deg, #fff9f1 0%, #fffdf9 100%);
+    }
+
+    .welcome-shell {
+        padding: 3rem 0 4rem;
+    }
+
+    .welcome-hero {
+        background: linear-gradient(135deg, #111827 0%, #1f2937 52%, #d97706 140%);
+        color: #fff8ef;
+        border-radius: 1.6rem;
+        padding: 2.2rem;
+        box-shadow: 0 24px 48px rgba(17, 24, 39, 0.22);
+    }
+
+    .welcome-card {
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid #f1e2d3;
+        border-radius: 1.25rem;
+        padding: 1.4rem;
+        height: 100%;
+        box-shadow: 0 18px 36px rgba(148, 163, 184, 0.14);
+    }
+
+    .step-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: #fff4e8;
+        color: #b45309;
+        font-weight: 800;
+        margin-bottom: 0.9rem;
+    }
+</style>
+
+<div class="container welcome-shell">
+    <div class="welcome-hero mb-4">
+        <div class="row align-items-center g-4">
+            <div class="col-lg-8">
+                <h1 class="display-6 mb-3">Scan, sign in, and order with Shubham's Kitchen</h1>
+                <p class="mb-0 text-light opacity-75">
+                    Customers open this web app from a QR code, sign up once, and then return directly to their account until they log out.
+                </p>
+            </div>
+            <div class="col-lg-4 text-lg-end">
+                <a href="/profile/?mode=signup" class="btn btn-warning me-2">Sign up</a>
+                <a href="/profile/?mode=login" class="btn btn-outline-light">Login</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="welcome-card">
+                <div class="step-pill">1</div>
+                <h2 class="h5">Scan QR code</h2>
+                <p class="mb-0 text-muted">Customer scans the table, takeaway, or delivery QR and opens the restaurant app.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="welcome-card">
+                <div class="step-pill">2</div>
+                <h2 class="h5">Sign up once</h2>
+                <p class="mb-0 text-muted">First-time users create their account with name, phone, email, and address.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="welcome-card">
+                <div class="step-pill">3</div>
+                <h2 class="h5">Order smoothly</h2>
+                <p class="mb-0 text-muted">Returning users stay signed in until logout and can directly open profile, menu, cart, and order pages.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

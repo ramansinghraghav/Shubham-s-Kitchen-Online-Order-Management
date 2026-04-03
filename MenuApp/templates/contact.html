@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% block title %}Contact Us{% endblock %}
+
+{% block content %}
+<style>
+    body {
+        background:
+            radial-gradient(circle at top left, rgba(251, 191, 36, 0.18), transparent 25%),
+            linear-gradient(180deg, #fffaf3 0%, #fffdf9 100%);
+    }
+
+    .contact-shell {
+        padding: 2.5rem 0 3rem;
+    }
+
+    .contact-hero {
+        background: linear-gradient(135deg, #111827 0%, #1f2937 58%, #d97706 140%);
+        color: #fff8ef;
+        border-radius: 1.5rem;
+        padding: 2rem;
+        box-shadow: 0 20px 42px rgba(17, 24, 39, 0.2);
+    }
+
+    .contact-card {
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid #f0e1d2;
+        border-radius: 1.25rem;
+        padding: 1.35rem;
+        height: 100%;
+        box-shadow: 0 16px 32px rgba(148, 163, 184, 0.14);
+    }
+
+    .contact-label {
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #9a3412;
+        margin-bottom: 0.35rem;
+        font-weight: 700;
+    }
+
+    .contact-value {
+        font-size: 1.05rem;
+        color: #1f2937;
+        font-weight: 600;
+    }
+
+    .contact-note {
+        color: #6b7280;
+        font-size: 0.92rem;
+    }
+
+    .hours-row + .hours-row {
+        border-top: 1px dashed #e6d7c9;
+        margin-top: 0.8rem;
+        padding-top: 0.8rem;
+    }
+</style>
+
+<div class="container contact-shell">
+    <div class="contact-hero mb-4">
+        <div class="row align-items-center g-4">
+            <div class="col-lg-8">
+                <h1 class="mb-2">Contact Shubham's Kitchen</h1>
+                <p class="mb-0 text-light opacity-75">Have questions or feedback? We'd love to hear from you!</p>
+            </div>
+            <div class="col-lg-4 text-lg-end">
+                <a href="/menu/" class="btn btn-warning">Browse Menu</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-6 col-xl-3">
+            <div class="contact-card">
+                <div class="contact-label">Phone</div>
+                <div class="contact-value">+91 9079172810</div>
+                <div class="contact-note mt-2">Call for Order booking, takeaway, and order support.</div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+            <div class="contact-card">
+                <div class="contact-label">Email</div>
+                <div class="contact-value">shubhamskitchen@gmail.com</div>
+                <div class="contact-note mt-2">Use this email for business and customer queries.</div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+            <div class="contact-card">
+                <div class="contact-label">Address</div>
+                <div class="contact-value">Near main bus stand SHUBHAM HOTEL KESHORAI PATAN </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+            <div class="contact-card">
+                <div class="contact-label">Quick Support</div>
+                <div class="contact-value">DM or WhatsApp available</div>
+                <div class="contact-note mt-2">9079172810</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mt-1">
+        <div class="col-lg-7">
+            <div class="contact-card">
+                <h2 class="h4 mb-3">Restaurant timings</h2>
+
+                <div class="hours-row d-flex justify-content-between gap-3">
+                    <span class="fw-semibold">Monday - Friday</span>
+                    <span>10:00 AM - 11:00 PM</span>
+                </div>
+
+                <div class="hours-row d-flex justify-content-between gap-3">
+                    <span class="fw-semibold">Saturday</span>
+                    <span>10:00 AM - 11:30 PM</span>
+                </div>
+
+                <div class="hours-row d-flex justify-content-between gap-3">
+                    <span class="fw-semibold">Sunday</span>
+                    <span>11:00 AM - 11:30 PM</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

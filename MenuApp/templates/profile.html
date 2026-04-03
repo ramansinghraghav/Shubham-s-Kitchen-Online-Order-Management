@@ -1,0 +1,440 @@
+{% extends 'base.html' %}
+{% block title %}Profile{% endblock %}
+
+{% block content %}
+<style>
+    body {
+        background:
+            radial-gradient(circle at top right, rgba(251, 191, 36, 0.18), transparent 24%),
+            linear-gradient(180deg, #fffaf3 0%, #fffdf9 100%);
+    }
+
+    .profile-shell {
+        padding: 2.5rem 0 3rem;
+    }
+
+    .profile-card,
+    .auth-card {
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid #f2e4d6;
+        border-radius: 1.35rem;
+        box-shadow: 0 18px 38px rgba(148, 163, 184, 0.16);
+    }
+
+    .profile-card {
+        padding: 1.6rem;
+    }
+
+    .auth-card {
+        padding: 1.4rem;
+        height: 100%;
+    }
+
+    .profile-hero {
+        background: linear-gradient(135deg, #111827 0%, #1f2937 55%, #d97706 135%);
+        color: #fff8ef;
+        border-radius: 1.35rem;
+        padding: 1.8rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .avatar-circle {
+        width: 74px;
+        height: 74px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.16);
+        font-size: 1.6rem;
+        font-weight: 800;
+    }
+
+    .meta-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.4rem 0.8rem;
+        border-radius: 999px;
+        background: #fff4e8;
+        color: #b45309;
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+
+    .order-line + .order-line {
+        border-top: 1px dashed #e8d8c8;
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+    }
+
+    .auth-shell {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .auth-shell::before,
+    .auth-shell::after {
+        content: "";
+        position: absolute;
+        border-radius: 999px;
+        filter: blur(4px);
+        opacity: 0.75;
+        z-index: 0;
+    }
+
+    .auth-shell::before {
+        width: 260px;
+        height: 260px;
+        background: radial-gradient(circle, rgba(245, 158, 11, 0.22), transparent 70%);
+        top: -80px;
+        left: -40px;
+    }
+
+    .auth-shell::after {
+        width: 320px;
+        height: 320px;
+        background: radial-gradient(circle, rgba(37, 99, 235, 0.14), transparent 70%);
+        right: -80px;
+        bottom: -120px;
+    }
+
+    .auth-shell > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .welcome-panel {
+        background: linear-gradient(145deg, #111827 0%, #172033 48%, #d97706 145%);
+        color: #fff8ef;
+        border-radius: 1.5rem;
+        padding: 2rem;
+        box-shadow: 0 24px 42px rgba(17, 24, 39, 0.22);
+        height: 100%;
+    }
+
+    .welcome-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.42rem 0.9rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        font-size: 0.82rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .welcome-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.9rem;
+    }
+
+    .welcome-tile {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 1rem;
+        padding: 1rem;
+        min-height: 118px;
+    }
+
+    .welcome-tile h3 {
+        font-size: 0.95rem;
+        margin-bottom: 0.4rem;
+    }
+
+    .welcome-tile p {
+        font-size: 0.88rem;
+        margin-bottom: 0;
+        color: rgba(255, 248, 239, 0.78);
+    }
+
+    .auth-panel {
+        background: rgba(255, 255, 255, 0.94);
+        border: 1px solid #f1dfcf;
+        border-radius: 1.5rem;
+        box-shadow: 0 20px 36px rgba(148, 163, 184, 0.16);
+        overflow: hidden;
+    }
+
+    .auth-tabs {
+        display: flex;
+        gap: 0.75rem;
+        padding: 1rem 1rem 0;
+    }
+
+    .auth-tab {
+        flex: 1;
+        text-align: center;
+        border-radius: 999px;
+        padding: 0.8rem 1rem;
+        text-decoration: none;
+        font-weight: 700;
+        color: #8b5e34;
+        background: #fff6eb;
+        border: 1px solid #f4dfc8;
+    }
+
+    .auth-tab.active {
+        color: #fffaf3;
+        background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+        border-color: transparent;
+    }
+
+    .auth-form-card {
+        padding: 1.6rem;
+    }
+
+    .auth-kicker {
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 700;
+        color: #b45309;
+        margin-bottom: 0.35rem;
+    }
+
+    @media (max-width: 767.98px) {
+        .welcome-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="container profile-shell">
+    {% if user.is_authenticated %}
+    <div class="profile-hero shadow-sm p-3 mb-4 rounded-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <img src="{{ profile.photo_url }}" alt="Profile photo" class="rounded-circle border border-2" style="width:85px;height:85px;object-fit:cover;" />
+                <div>
+                    <h1 class="h3 mb-1">{{ profile.full_name|default:user.username }}</h1>
+                    <div class="text-light opacity-75">
+                        {% if user.email %}{{ user.email }}{% else %}Signed in user profile{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap align-items-center">
+                <span class="badge bg-warning text-dark">Joined {{ user.date_joined|date:"d M Y" }}</span>
+                <a href="/logout/" class="btn btn-outline-light btn-sm">Logout</a>
+                {% if mode != 'edit' %}
+                    <a href="?mode=edit" class="btn btn-light btn-sm">Edit profile</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row gy-4">
+        <div class="col-lg-5">
+            <div class="profile-card p-4">
+                <h2 class="h5 mb-3">Account details</h2>
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2"><strong>Username:</strong> {{ user.username }}</li>
+                    <li class="mb-2"><strong>Full name:</strong> {{ profile.full_name|default:"Not set" }}</li>
+                    <li class="mb-2"><strong>Phone:</strong> {{ profile.phone|default:"Not set" }}</li>
+                    <li class="mb-2"><strong>Email:</strong> {{ user.email|default:"Not set" }}</li>
+                    <li class="mb-2"><strong>Address:</strong> {{ profile.address|default:"Not set" }}</li>
+                    <li><strong>Member since:</strong> {{ user.date_joined|date:"d M Y, h:i A" }}</li>
+                </ul>
+            </div>
+        </div>
+
+        {% if mode == 'edit' %}
+        <div class="col-lg-7">
+            <div class="profile-card p-4">
+                <h2 class="h5 mb-3">Edit profile</h2>
+
+                <div class="d-flex align-items-center mb-3 gap-3">
+                    <img src="{{ profile.photo_url }}" alt="Profile image" class="rounded-circle border" style="width:64px;height:64px;object-fit:cover;" />
+                    {% if profile.profile_photo %}
+                    <form method="post" class="mb-0">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete_photo">
+                        <button type="submit" class="btn btn-outline-danger btn-sm">Remove photo</button>
+                    </form>
+                    {% endif %}
+                </div>
+
+                <form method="post" enctype="multipart/form-data" novalidate>
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update_profile">
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Full name</label>
+                            {{ profile_form.full_name }}
+                            <div class="text-danger small">{{ profile_form.full_name.errors }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Phone</label>
+                            {{ profile_form.phone }}
+                            <div class="text-danger small">{{ profile_form.phone.errors }}</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Address</label>
+                            {{ profile_form.address }}
+                            <div class="text-danger small">{{ profile_form.address.errors }}</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Profile photo</label>
+                            {{ profile_form.profile_photo }}
+                            <div class="text-danger small">{{ profile_form.profile_photo.errors }}</div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary mt-3">Save changes</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="row g-4 mt-3">
+        <div class="col-12">
+            <div class="profile-card p-4">
+                <h2 class="h5 mb-3">Latest order</h2>
+                {% if last_order %}
+                    <div class="mb-3 text-muted">{{ last_order.item_count }} item{{ last_order.item_count|pluralize }} in your latest order</div>
+                    {% for item in last_order.items %}
+                        <div class="order-line d-flex justify-content-between align-items-center gap-3 mb-2">
+                            <div>
+                                <div class="fw-semibold">{{ item.name }}</div>
+                                <div class="small text-muted">{{ item.category }} | Qty {{ item.quantity }}</div>
+                            </div>
+                            <div class="fw-semibold">Rs. {{ item.line_total }}</div>
+                        </div>
+                    {% endfor %}
+                    <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                        <span class="fw-semibold">Total paid</span>
+                        <span class="fw-bold">Rs. {{ last_order.grand_total }}</span>
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-3">No order found yet. Place your first order and it will appear here.</p>
+                    <a href="/menu/" class="btn btn-warning btn-sm">Browse menu</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="auth-shell">
+        <div class="row g-4 align-items-stretch">
+            <div class="col-lg-6">
+                <div class="welcome-panel">
+                    <span class="welcome-badge">Welcome to Shubham's Kitchen</span>
+                    <h1 class="display-6 fw-bold mt-3 mb-3">Create your account or sign in</h1>
+                    <p class="mb-4 text-light opacity-75">Your neighborhood kitchen for fast comfort food, smooth order tracking, and direct support from the restaurant.</p>
+
+                    <div class="welcome-grid">
+                        <div class="welcome-tile">
+                            <h3>Fresh orders</h3>
+                            <p>Track accepted, preparing, ready, and delivered updates in one place.</p>
+                        </div>
+                        <div class="welcome-tile">
+                            <h3>Quick support</h3>
+                            <p>Call Shubham's Kitchen directly whenever you need pickup or order help.</p>
+                        </div>
+                        <div class="welcome-tile">
+                            <h3>Saved history</h3>
+                            <p>Signed-in users can review recent orders and account details anytime.</p>
+                        </div>
+                        <div class="welcome-tile">
+                            <h3>Easy reorder</h3>
+                            <p>Keep your details ready so the next order takes less time to place.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="auth-panel">
+                    <div class="auth-tabs">
+                        <a href="/profile/?mode=signup" class="auth-tab {% if mode != 'login' %}active{% endif %}">Sign up</a>
+                        <a href="/profile/?mode=login" class="auth-tab {% if mode == 'login' %}active{% endif %}">Login</a>
+                    </div>
+
+                    {% if mode == 'login' %}
+                    <div class="auth-form-card">
+                        <div class="auth-kicker">Welcome back</div>
+                        <h2 class="h3 mb-2">Login</h2>
+                        <p class="text-muted mb-4">Sign in to track orders, manage your profile, and stay connected with Shubham's Kitchen.</p>
+                        <form method="post" novalidate>
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="login">
+                            {{ login_form.non_field_errors }}
+                            <div class="mb-3">
+                                <label class="form-label">Username</label>
+                                {{ login_form.username }}
+                                <div class="text-danger small">{{ login_form.username.errors }}</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Password</label>
+                                {{ login_form.password }}
+                                <div class="text-danger small">{{ login_form.password.errors }}</div>
+                            </div>
+                            <button type="submit" class="btn btn-warning w-100">Login</button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <div class="auth-form-card">
+                        <div class="auth-kicker">Join the kitchen</div>
+                        <h2 class="h3 mb-2">Sign up</h2>
+                        <p class="text-muted mb-4">Create your Shubham's Kitchen account for faster checkout, saved details, and order tracking.</p>
+                        <form method="post" enctype="multipart/form-data" novalidate>
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="signup">
+                            {{ signup_form.non_field_errors }}
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Username</label>
+                                    {{ signup_form.username }}
+                                    <div class="text-danger small">{{ signup_form.username.errors }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Full name</label>
+                                    {{ signup_form.full_name }}
+                                    <div class="text-danger small">{{ signup_form.full_name.errors }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Phone</label>
+                                    {{ signup_form.phone }}
+                                    <div class="text-danger small">{{ signup_form.phone.errors }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Email</label>
+                                    {{ signup_form.email }}
+                                    <div class="text-danger small">{{ signup_form.email.errors }}</div>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Address</label>
+                                    {{ signup_form.address }}
+                                    <div class="text-danger small">{{ signup_form.address.errors }}</div>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Profile photo</label>
+                                    {{ signup_form.profile_photo }}
+                                    <div class="text-danger small">{{ signup_form.profile_photo.errors }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Password</label>
+                                    {{ signup_form.password1 }}
+                                    <div class="text-danger small">{{ signup_form.password1.errors }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Confirm password</label>
+                                    {{ signup_form.password2 }}
+                                    <div class="text-danger small">{{ signup_form.password2.errors }}</div>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-dark w-100 mt-4">Create account</button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

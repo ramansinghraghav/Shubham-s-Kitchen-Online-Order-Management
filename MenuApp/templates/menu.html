@@ -1,0 +1,360 @@
+{% extends 'base.html' %}
+{% block title %}Menu{% endblock %}
+
+{% block content %}
+<style>
+    body {
+        background: linear-gradient(160deg, #f4f9ff 0%, #e9f1ff 35%, #fefefe 100%);
+    }
+
+    .menu-wrapper {
+        padding: 2rem 0 3rem;
+    }
+
+    .section-title {
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
+
+    .menu-highlight {
+        font-size: 0.95rem;
+        color: #5f6368;
+    }
+
+    .menu-card-img {
+        width: 100%;
+        height: 195px;
+        object-fit: cover;
+        border-top-left-radius: 0.75rem;
+        border-top-right-radius: 0.75rem;
+    }
+
+    .menu-card {
+        border: 0;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 12px 28px rgba(34, 54, 88, 0.12);
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+        background: #fff;
+    }
+
+    .menu-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 18px 42px rgba(34, 54, 88, 0.2);
+    }
+
+    .menu-card-body {
+        padding: 1rem 1rem 1.2rem;
+    }
+
+    .menu-card-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+    }
+
+    .menu-card-subtitle {
+        color: #6b7280;
+        font-size: 0.85rem;
+        margin-bottom: 0.65rem;
+    }
+
+    .menu-card-price {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #2a4365;
+    }
+
+    .item-cart-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.28rem 0.65rem;
+        border-radius: 999px;
+        background: #fff2e8;
+        color: #c05621;
+        font-size: 0.85rem;
+        font-weight: 700;
+    }
+
+    .menu-qty-control {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.25rem;
+        border-radius: 999px;
+        background: #fff4e8;
+        border: 1px solid #ffd9bf;
+    }
+
+    .menu-qty-btn {
+        width: 32px;
+        height: 32px;
+        border: 0;
+        border-radius: 50%;
+        background: #f59e0b;
+        color: #fff;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .menu-qty-value {
+        min-width: 22px;
+        text-align: center;
+        font-weight: 700;
+        color: #92400e;
+    }
+
+    .card-footer {
+        border-top: 1px solid #edf2f7;
+        background: #ffffff;
+    }
+
+    .filter-btn-green {
+        border-radius: 999px;
+        padding: 0.62rem 1.2rem;
+        font-weight: 600;
+    }
+
+    .list-group-item {
+        border: 0;
+        border-bottom: 1px solid #eef2f7;
+        padding: 0.65rem 0.9rem;
+    }
+
+    .list-group-item:first-child {
+        border-top: 1px solid #eef2f7;
+    }
+
+    @media (max-width: 992px) {
+        .menu-card-img {
+            height: 160px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .menu-card-img {
+            height: 135px;
+        }
+    }
+</style>
+<div class="container mt-5">
+    <input type="hidden" id="menu-csrf-token" value="{{ csrf_token }}">
+
+    <div class="text-center mb-4">
+        <h1>Our Menu</h1>
+        <p>Choose your favorite dishes from our freshly prepared selection.</p>
+    </div>
+
+    <div id="menu-cart-alert" class="alert alert-success border-0 shadow-sm text-center {% if not cart_added %}d-none{% endif %}">
+        Item added to cart successfully.
+    </div>
+
+    <div class="d-flex justify-content-center mb-4">
+        <button type="button" class="btn btn-success filter-btn-green" data-bs-toggle="modal" data-bs-target="#filterModal">
+            <i class="bi bi-filter me-2"></i>Filter by Category
+        </button>
+    </div>
+
+    <!-- Category Modal -->
+    <div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="filterModalLabel">Filter Menu Categories</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="list-group">
+                        <label class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>All</span>
+                            <input class="form-check-input" type="checkbox" value="All" checked id="filter-all">
+                        </label>
+                        {% for category in grouped_menu.keys %}
+                        <label class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>{{ category }}</span>
+                            <input class="form-check-input filter-option" type="checkbox" value="{{ category }}" id="filter-{{ category }}" checked>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="applyFilters">Apply</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% for category, items in grouped_menu.items %}
+    <div class="menu-category mb-5" data-category="{{ category }}">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="mb-0">{{ category }}</h3>
+            <span class="badge bg-primary">{{ items|length }} items</span>
+        </div>
+        <div class="row g-4">
+            {% for item in items %}
+            <div class="col-md-4">
+                <div class="card menu-card h-100">
+                    <img src="{{ item.image_url }}" class="menu-card-img" alt="{{ item.name }}">
+                    <div class="card-body menu-card-body d-flex flex-column">
+                        <h5 class="menu-card-title">{{ item.name }}</h5>
+                        <p class="menu-card-subtitle">{{ item.description }}</p>
+                        <div class="d-flex justify-content-between align-items-center mt-auto">
+                            <div class="d-flex flex-column align-items-start gap-2">
+                                <span class="menu-card-price">{{ item.price }}</span>
+                                <span class="item-cart-count {% if item.cart_quantity == 0 %}d-none{% endif %}" data-item-count="{{ item.id }}">
+                                    In cart: <span class="item-cart-count-value">{{ item.cart_quantity }}</span>
+                                </span>
+                            </div>
+                            <div class="menu-qty-control" data-qty-control="{{ item.id }}">
+                                <button type="button" class="menu-qty-btn menu-qty-action" data-action="decrease" data-item-id="{{ item.id }}">-</button>
+                                <span class="menu-qty-value" data-qty-value="{{ item.id }}">{{ item.cart_quantity }}</span>
+                                <button type="button" class="menu-qty-btn menu-qty-action" data-action="add" data-item-id="{{ item.id }}">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+    const sections = document.querySelectorAll('.menu-category');
+    const allCheckbox = document.getElementById('filter-all');
+    const filterOptions = document.querySelectorAll('.filter-option');
+
+    function updateCategoryDisplay() {
+        const activeCategories = Array.from(filterOptions)
+            .filter(option => option.checked)
+            .map(option => option.value);
+
+        if (allCheckbox.checked || activeCategories.length === 0) {
+            sections.forEach(sec => sec.style.display = 'block');
+            return;
+        }
+
+        sections.forEach(sec => {
+            sec.style.display = activeCategories.includes(sec.dataset.category) ? 'block' : 'none';
+        });
+    }
+
+    allCheckbox.addEventListener('change', () => {
+        if (allCheckbox.checked) {
+            filterOptions.forEach(opt => opt.checked = true);
+        } else {
+            filterOptions.forEach(opt => opt.checked = false);
+        }
+    });
+
+    filterOptions.forEach(option => {
+        option.addEventListener('change', () => {
+            const allSelected = Array.from(filterOptions).every(opt => opt.checked);
+            allCheckbox.checked = allSelected;
+        });
+    });
+
+    document.getElementById('applyFilters').addEventListener('click', () => {
+        updateCategoryDisplay();
+        const filterModal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
+        filterModal.hide();
+    });
+
+    const menuCartAlert = document.getElementById('menu-cart-alert');
+    const navCartCount = document.getElementById('nav-cart-count');
+    const csrfToken = document.getElementById('menu-csrf-token').value;
+    const qtyButtons = document.querySelectorAll('.menu-qty-action');
+
+    function showCartAlert(itemName) {
+        menuCartAlert.textContent = `${itemName} added to cart successfully.`;
+        menuCartAlert.classList.remove('d-none');
+        window.clearTimeout(showCartAlert.timeoutId);
+        showCartAlert.timeoutId = window.setTimeout(() => {
+            menuCartAlert.classList.add('d-none');
+        }, 1800);
+    }
+
+    function updateItemCount(itemId, itemCount) {
+        const badge = document.querySelector(`[data-item-count="${itemId}"]`);
+        if (!badge) {
+            return;
+        }
+
+        badge.classList.toggle('d-none', itemCount <= 0);
+        const value = badge.querySelector('.item-cart-count-value');
+        if (value) {
+            value.textContent = itemCount;
+        }
+    }
+
+    function updateMenuQuantity(itemId, itemCount) {
+        const qtyValue = document.querySelector(`[data-qty-value="${itemId}"]`);
+        if (qtyValue) {
+            qtyValue.textContent = itemCount;
+        }
+    }
+
+    function showCartError() {
+        menuCartAlert.textContent = 'Could not update cart right now. Please try again.';
+        menuCartAlert.classList.remove('d-none', 'alert-success');
+        menuCartAlert.classList.add('alert-danger');
+        window.clearTimeout(showCartAlert.timeoutId);
+        showCartAlert.timeoutId = window.setTimeout(() => {
+            menuCartAlert.classList.add('d-none');
+            menuCartAlert.classList.remove('alert-danger');
+            menuCartAlert.classList.add('alert-success');
+        }, 2200);
+    }
+
+    async function updateMenuCart(itemId, action) {
+        const formData = new FormData();
+        formData.append('action', action);
+        formData.append('item_id', itemId);
+        formData.append('next_url', 'menu');
+
+        const response = await fetch('/cart/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken,
+                'Accept': 'application/json',
+            },
+            body: formData,
+        });
+
+        if (!response.ok) {
+            throw new Error('Request failed');
+        }
+
+        return response.json();
+    }
+
+    qtyButtons.forEach((button) => {
+        button.addEventListener('click', async () => {
+            try {
+                const itemId = button.dataset.itemId;
+                const action = button.dataset.action;
+                const data = await updateMenuCart(itemId, action);
+
+                navCartCount.textContent = data.cart_count;
+                updateItemCount(itemId, data.item_count);
+                updateMenuQuantity(itemId, data.item_count);
+
+                if (data.item_name && action !== 'decrease') {
+                    showCartAlert(data.item_name);
+                }
+            } catch (error) {
+                showCartError();
+            }
+        });
+    });
+
+    // Init
+    updateCategoryDisplay();
+</script>
+
+{% endblock %}

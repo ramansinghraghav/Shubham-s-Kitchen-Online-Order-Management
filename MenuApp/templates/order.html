@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+{% block title %}Order{% endblock %}
+
+{% block content %}
+<style>
+    body {
+        background: linear-gradient(180deg, #f7f7ff 0%, #ffffff 100%);
+    }
+
+    .order-shell {
+        padding: 2.5rem 0 3rem;
+    }
+
+    .order-card,
+    .summary-card {
+        background: #ffffff;
+        border-radius: 1.25rem;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(43, 110, 240, 0.12);
+        transition: transform .2s ease, box-shadow .2s ease;
+    }
+
+    .order-card:hover,
+    .summary-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 14px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .order-card {
+        padding: 1.5rem;
+    }
+
+    .summary-card {
+        padding: 1.5rem;
+    }
+
+    .status-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.45rem 0.95rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.01em;
+        font-size: 0.76rem;
+    }
+
+    .status-chip.pending { background-color: #fff7d6; color: #af8f00; }
+    .status-chip.accepted { background-color: #dbe9ff; color: #0f4d9f; }
+    .status-chip.preparing { background-color: #d3efff; color: #075985; }
+    .status-chip.ready { background-color: #d7f5e9; color: #0f7f52; }
+    .status-chip.completed { background-color: #d4f4ff; color: #105b8b; }
+    .status-chip.cancelled { background-color: #ffd8de; color: #8b1b26; }
+
+    .order-item + .order-item {
+        border-top: 1px dashed #e2eaf6;
+        margin-top: 0.9rem;
+        padding-top: 0.9rem;
+    }
+
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.7rem;
+        color: #556073;
+    }
+
+    .summary-row.total {
+        border-top: 1px solid #e5ecf8;
+        padding-top: 0.8rem;
+        margin-top: 0.8rem;
+        font-weight: 800;
+        color: #0f1f3a;
+    }
+
+    .empty-order {
+        padding: 2.5rem;
+        text-align: center;
+        border: 1px dashed #b5d1ff;
+        border-radius: 1.25rem;
+        background: #ffffff;
+    }
+
+    .countdown-label { font-size: 0.9rem; font-weight: 600; color: #0b5ed7; }
+    .countdown-value { font-size: 1.05rem; font-weight: 700; color: #0a58ca; }
+
+    .progress-timer {
+        height: 10px;
+        border-radius: 8px;
+        background: #e9efff;
+        overflow: hidden;
+    }
+
+    .progress-timer .progress-bar {
+        height: 10px;
+        border-radius: 8px;
+        transition: width 0.5s ease;
+    }
+
+    .call-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.55rem;
+    }
+
+    .call-action svg {
+        width: 1rem;
+        height: 1rem;
+        fill: currentColor;
+    }
+</style>
+
+<div class="container order-shell">
+    {% if last_order %}
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="order-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h1 class="h3 mb-1">{% if is_detail_view %}Order details{% else %}Placed order details{% endif %}</h1>
+                        <p class="text-muted mb-0">
+                            {% if last_order.user %}
+                                Track status, prep progress, and payment summary for this order.
+                            {% else %}
+                                This page shows the latest guest order stored in this browser session.
+                            {% endif %}
+                        </p>
+                    </div>
+                    <span class="status-chip {% if last_order.status == 'pending' %}pending{% elif last_order.status == 'accepted' %}accepted{% elif last_order.status == 'preparing' %}preparing{% elif last_order.status == 'ready' %}ready{% elif last_order.status == 'completed' %}completed{% else %}cancelled{% endif %}">{{ last_order.get_status_display }}</span>
+                </div>
+
+                <div class="d-flex flex-wrap justify-content-between gap-2 mb-3 text-muted">
+                    <div>Order #{{ last_order.id }} &middot; {{ last_order.item_count }} item{{ last_order.item_count|pluralize }} confirmed</div>
+                    <div>Placed on {{ last_order.created_at|date:'d M Y H:i' }}</div>
+                </div>
+
+                <div class="mb-3">
+                    <h4 class="h6 mb-2">Cook prep status</h4>
+                    {% if last_order.cook_prep_end and last_order.cook_prep_started_at and last_order.status != 'ready' and last_order.status != 'completed' and last_order.status != 'cancelled' %}
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="countdown-label">Estimated:</span>
+                            <span class="countdown-value">{{ last_order.cook_prep_label }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span id="user-prep-countdown" data-start-time="{{ last_order.cook_prep_started_at|date:'c' }}" data-end-time="{{ last_order.cook_prep_end|date:'c' }}">Remaining: <strong>Calculating...</strong></span>
+                            <span class="badge bg-info">{{ last_order.get_status_display }}</span>
+                        </div>
+                        <div class="progress-timer">
+                            <div class="progress-bar bg-info" role="progressbar" style="width: 0%" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    {% elif last_order.status == 'ready' %}
+                        <div class="small text-success">Your order is ready for pickup.</div>
+                    {% elif last_order.status == 'completed' %}
+                        <div class="small text-success">Your order has been delivered.</div>
+                    {% elif last_order.cook_prep_label %}
+                        <div class="small text-info">{{ last_order.cook_prep_label }} assigned.</div>
+                    {% else %}
+                        <div class="small text-muted">Awaiting chef confirmation</div>
+                    {% endif %}
+                </div>
+
+                {% for item in last_order.items.all %}
+                <div class="order-item d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                        <h2 class="h6 mb-1">{{ item.menu_item.name }}</h2>
+                        <div class="small text-muted">{{ item.menu_item.category }}</div>
+                        <div class="small text-muted">Qty: {{ item.quantity }} x Rs. {{ item.unit_price }}</div>
+                    </div>
+                    <div class="fw-semibold">Rs. {{ item.line_total }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="summary-card">
+                <h2 class="h5 mb-3">Payment summary</h2>
+                <div class="summary-row">
+                    <span>Subtotal</span>
+                    <span>Rs. {{ last_order.subtotal }}</span>
+                </div>
+                <div class="summary-row">
+                    <span>Delivery</span>
+                    <span>Rs. {{ last_order.delivery_fee }}</span>
+                </div>
+                <div class="summary-row">
+                    <span>Taxes</span>
+                    <span>Rs. {{ last_order.tax_amount }}</span>
+                </div>
+                <div class="summary-row total">
+                    <span>Total paid</span>
+                    <span>Rs. {{ last_order.grand_total }}</span>
+                </div>
+                <a href="tel:{{ restaurant_phone_link }}" class="btn btn-success w-100 mt-3 call-action">
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M3.654 1.328a.678.678 0 0 1 .737-.145l2.522 1.01c.294.118.445.44.35.743l-.547 1.75a.68.68 0 0 1-.645.48c-.15 0-.296-.05-.417-.142l-1.14-.855a11.72 11.72 0 0 0 5.516 5.516l.855-1.14a.68.68 0 0 1 .48-.645l1.75-.547a.678.678 0 0 1 .743.35l1.01 2.522a.678.678 0 0 1-.145.737l-1.2 1.2a1.745 1.745 0 0 1-1.808.42c-2.882-.96-5.53-3.607-6.49-6.49a1.745 1.745 0 0 1 .42-1.808z"/>
+                    </svg>
+                    <span>Call restaurant: {{ restaurant_phone_display }}</span>
+                </a>
+                {% if last_order.user %}
+                <a href="/orders/" class="btn btn-outline-dark w-100 mt-3">View all orders</a>
+                {% endif %}
+                <a href="/cart/" class="btn btn-warning w-100 mt-3">Open cart</a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-order">
+        <h1 class="h4 mb-2">No active order right now</h1>
+        <p class="text-muted mb-3">Delivered or cancelled orders stay here for {{ order_page_history_hours }} hour{{ order_page_history_hours|pluralize }}, then move to your order history only.</p>
+        <a href="tel:{{ restaurant_phone_link }}" class="btn btn-success call-action">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M3.654 1.328a.678.678 0 0 1 .737-.145l2.522 1.01c.294.118.445.44.35.743l-.547 1.75a.68.68 0 0 1-.645.48c-.15 0-.296-.05-.417-.142l-1.14-.855a11.72 11.72 0 0 0 5.516 5.516l.855-1.14a.68.68 0 0 1 .48-.645l1.75-.547a.678.678 0 0 1 .743.35l1.01 2.522a.678.678 0 0 1-.145.737l-1.2 1.2a1.745 1.745 0 0 1-1.808.42c-2.882-.96-5.53-3.607-6.49-6.49a1.745 1.745 0 0 1 .42-1.808z"/>
+            </svg>
+            <span>Call restaurant</span>
+        </a>
+        <a href="/cart/" class="btn btn-warning">Go to cart</a>
+        {% if user.is_authenticated %}
+        <a href="/orders/" class="btn btn-outline-dark ms-2">View order history</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function formatTime(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    return [h, m, s]
+        .map((v, i) => (i === 0 ? v : String(v).padStart(2, '0')))
+        .join(':');
+}
+
+function startCountdown(element) {
+    const endTime = new Date(element.dataset.endTime).getTime();
+    const startTime = new Date(element.dataset.startTime).getTime();
+    const progressBar = element.closest('.order-card').querySelector('.progress-bar');
+
+    if (isNaN(endTime) || isNaN(startTime)) {
+        element.textContent = 'Invalid timer';
+        return;
+    }
+
+    const totalSeconds = Math.max(1, Math.floor((endTime - startTime) / 1000));
+
+    const update = () => {
+        const now = Date.now();
+        const remainingSeconds = Math.max(0, Math.floor((endTime - now) / 1000));
+        const elapsedSeconds = Math.max(0, totalSeconds - remainingSeconds);
+        const percent = Math.min(100, Math.round((elapsedSeconds / totalSeconds) * 100));
+
+        if (remainingSeconds <= 0) {
+            element.innerHTML = 'Ready or overdue';
+            if (progressBar) {
+                progressBar.style.width = '100%';
+                progressBar.classList.remove('bg-info');
+                progressBar.classList.add('bg-success');
+            }
+            clearInterval(intervalId);
+            return;
+        }
+
+        element.innerHTML = `Remaining: <strong>${formatTime(remainingSeconds)}</strong>`;
+        if (progressBar) {
+            progressBar.style.width = `${percent}%`;
+            if (percent <= 40) {
+                progressBar.className = 'progress-bar bg-danger';
+            } else if (percent <= 75) {
+                progressBar.className = 'progress-bar bg-warning';
+            } else {
+                progressBar.className = 'progress-bar bg-success';
+            }
+        }
+    };
+
+    update();
+    const intervalId = setInterval(update, 1000);
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const timerEl = document.getElementById('user-prep-countdown');
+    if (timerEl) {
+        startCountdown(timerEl);
+    }
+});
+</script>
+{% endblock %}

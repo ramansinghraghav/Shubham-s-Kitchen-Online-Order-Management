@@ -1,0 +1,301 @@
+{% extends 'base.html' %}
+{% block title %}Cart{% endblock %}
+
+{% block content %}
+<style>
+    body {
+        background:
+            radial-gradient(circle at top left, rgba(255, 184, 107, 0.28), transparent 28%),
+            radial-gradient(circle at top right, rgba(255, 106, 61, 0.18), transparent 24%),
+            linear-gradient(180deg, #fff8f2 0%, #fffdf8 100%);
+    }
+
+    .cart-shell {
+        padding: 2.5rem 0 3rem;
+    }
+
+    .hero-band {
+        background: linear-gradient(135deg, #1f2937 0%, #111827 48%, #ef6c2f 130%);
+        border-radius: 1.5rem;
+        color: #fff7ed;
+        padding: 2rem;
+        box-shadow: 0 20px 44px rgba(17, 24, 39, 0.22);
+    }
+
+    .hero-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.4rem 0.85rem;
+        background: rgba(255, 255, 255, 0.12);
+        font-size: 0.88rem;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+    }
+
+    .menu-panel,
+    .cart-panel {
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        border-radius: 1.25rem;
+        box-shadow: 0 18px 40px rgba(148, 163, 184, 0.18);
+        backdrop-filter: blur(12px);
+        padding: 1.25rem;
+    }
+
+    .cart-panel {
+        position: sticky;
+        top: 1rem;
+    }
+
+    .menu-item-card {
+        border: 1px solid #f3e4d8;
+        border-radius: 1rem;
+        padding: 1rem;
+        background: #fffdf9;
+        height: 100%;
+    }
+
+    .menu-thumb {
+        width: 92px;
+        height: 92px;
+        border-radius: 1rem;
+        object-fit: cover;
+        flex-shrink: 0;
+        box-shadow: 0 12px 24px rgba(239, 108, 47, 0.16);
+    }
+
+    .price-pill {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 0.32rem 0.7rem;
+        background: #fff1e7;
+        color: #b45309;
+        font-weight: 700;
+    }
+
+    .category-block + .category-block {
+        margin-top: 1.5rem;
+    }
+
+    .category-title {
+        font-weight: 800;
+        color: #1f2937;
+    }
+
+    .cart-item + .cart-item {
+        border-top: 1px dashed #ead7ca;
+        padding-top: 0.9rem;
+        margin-top: 0.9rem;
+    }
+
+    .qty-form {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        background: #fff3eb;
+        padding: 0.3rem;
+        border-radius: 999px;
+    }
+
+    .qty-btn {
+        width: 32px;
+        height: 32px;
+        border: 0;
+        border-radius: 50%;
+        background: #ef6c2f;
+        color: white;
+        font-weight: 700;
+    }
+
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.55rem;
+        color: #4b5563;
+    }
+
+    .summary-row.total {
+        color: #111827;
+        font-size: 1.08rem;
+        font-weight: 800;
+        padding-top: 0.8rem;
+        margin-top: 0.8rem;
+        border-top: 1px solid #ead7ca;
+    }
+
+    .checkout-box {
+        margin-top: 1.2rem;
+        padding: 1rem;
+        background: linear-gradient(180deg, #fff6ef 0%, #fffdfb 100%);
+        border: 1px solid #f4dfd1;
+        border-radius: 1rem;
+    }
+
+    .empty-state {
+        border: 1px dashed #f1c8b0;
+        border-radius: 1rem;
+        padding: 1.25rem;
+        background: #fff9f5;
+        text-align: center;
+        color: #6b7280;
+    }
+
+    @media (max-width: 991px) {
+        .cart-panel {
+            position: static;
+        }
+    }
+</style>
+
+<div class="container cart-shell">
+    <div class="hero-band mb-4">
+        <div class="hero-chip mb-3">Cart</div>
+        <div class="row align-items-center g-4">
+            <div class="col-lg-8">
+                <h1 class="mb-2">Review your cart before placing the order</h1>
+                <p class="mb-0 text-light">The cart page is for adding items and editing quantities only.</p>
+            </div>
+            <div class="col-lg-4 text-lg-end">
+                <div class="fs-5 fw-semibold">{{ cart_count }} item{{ cart_count|pluralize }} in cart</div>
+                <div class="opacity-75">Ready for checkout</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 align-items-start">
+        <div class="col-lg-8">
+            <div class="menu-panel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h2 class="h4 mb-1">Add more items</h2>
+                        <p class="text-muted mb-0">Pick dishes here and send them into the cart.</p>
+                    </div>
+                    <a href="/menu/" class="btn btn-outline-dark btn-sm">Full menu</a>
+                </div>
+
+                {% for category, items in grouped_menu.items %}
+                <div class="category-block">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h3 class="category-title h5 mb-0">{{ category }}</h3>
+                        <span class="badge text-bg-light">{{ items|length }} items</span>
+                    </div>
+                    <div class="row g-3">
+                        {% for item in items %}
+                        <div class="col-md-6">
+                            <div class="menu-item-card">
+                                <div class="d-flex gap-3">
+                                    <img src="{{ item.image_url }}" alt="{{ item.name }}" class="menu-thumb">
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between gap-2">
+                                            <h4 class="h6 mb-1">{{ item.name }}</h4>
+                                            <span class="price-pill">{{ item.price }}</span>
+                                        </div>
+                                        <p class="text-muted small mb-3">{{ item.description|truncatechars:90 }}</p>
+                                        <form method="post" class="mb-0">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="add">
+                                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                                            <button type="submit" class="btn btn-warning btn-sm">Add to cart</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="cart-panel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h4 mb-0">Your cart</h2>
+                    <span class="badge rounded-pill text-bg-dark">{{ cart_count }}</span>
+                </div>
+
+                {% if cart_items %}
+                    {% for cart_item in cart_items %}
+                    <div class="cart-item">
+                        <div class="d-flex justify-content-between gap-3">
+                            <div>
+                                <h3 class="h6 mb-1">{{ cart_item.item.name }}</h3>
+                                <div class="small text-muted">{{ cart_item.item.category }}</div>
+                                <div class="small fw-semibold mt-1">Rs. {{ cart_item.line_total }}</div>
+                            </div>
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="remove">
+                                <input type="hidden" name="item_id" value="{{ cart_item.item.id }}">
+                                <button type="submit" class="btn btn-link btn-sm text-danger text-decoration-none p-0">Remove</button>
+                            </form>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div class="small text-muted">Rs. {{ cart_item.unit_price }} each</div>
+                            <div class="qty-form">
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="decrease">
+                                    <input type="hidden" name="item_id" value="{{ cart_item.item.id }}">
+                                    <button type="submit" class="qty-btn">-</button>
+                                </form>
+                                <span class="fw-semibold px-2">{{ cart_item.quantity }}</span>
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="increase">
+                                    <input type="hidden" name="item_id" value="{{ cart_item.item.id }}">
+                                    <button type="submit" class="qty-btn">+</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <div class="checkout-box">
+                        <div class="summary-row">
+                            <span>Subtotal</span>
+                            <span>Rs. {{ subtotal }}</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Delivery</span>
+                            <span>Rs. {{ delivery_fee }}</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Taxes</span>
+                            <span>Rs. {{ tax_amount }}</span>
+                        </div>
+                        <div class="summary-row total">
+                            <span>To pay</span>
+                            <span>Rs. {{ grand_total }}</span>
+                        </div>
+
+                        <form method="post" class="mt-3">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="place_order">
+                            <div class="mb-2">
+                                <input name="receiver_name" type="text" class="form-control" placeholder="Receiver full name" required>
+                            </div>
+                            <div class="mb-2">
+                                <input name="receiver_phone" type="tel" class="form-control" placeholder="Receiver phone number" required>
+                            </div>
+                            <div class="mb-3">
+                                <textarea name="receiver_address" class="form-control" rows="3" placeholder="Delivery address" required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-dark w-100">Place order</button>
+                        </form>
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <h3 class="h6">Cart is empty</h3>
+                        <p class="mb-3">Add items from the menu, then come back here to place the order.</p>
+                        <a href="/menu/" class="btn btn-warning btn-sm">Browse menu</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
