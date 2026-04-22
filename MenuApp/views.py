@@ -2,10 +2,12 @@ import json
 import re
 from decimal import Decimal, InvalidOperation
 from datetime import timedelta
+from functools import wraps
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Sum
@@ -17,11 +19,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from .forms import SignUpForm, ProfileForm
 from .jwt_auth import JWTValidationError, build_token_pair, get_user_from_token
-from .models import MenuItem, Profile, Order, OrderItem
+from .models import MenuItem, PaymentEvent, Profile, Order, OrderItem
 from .services.payments import (
     RazorpayAPIError,
     RazorpayConfigurationError,
     create_razorpay_order,
+    verify_razorpay_webhook_signature,
 )
 
 
@@ -35,15 +38,22 @@ RESTAURANT_PHONE_DISPLAY = "+91 9079172810"
 RESTAURANT_PHONE_LINK = "+919079172810"
 DEFAULT_PAGE_SIZE = 10
 MAX_PAGE_SIZE = 50
+AUTH_RATE_LIMIT_COUNT = 10
+AUTH_RATE_LIMIT_WINDOW_SECONDS = 60
+PAYMENT_RATE_LIMIT_COUNT = 20
+PAYMENT_RATE_LIMIT_WINDOW_SECONDS = 60
 
 
-def parse_price(price: str) -> Decimal:
-    cleaned_price = re.sub(r"[^\d.]", "", price or "")
+def parse_price(price) -> Decimal:
+    if isinstance(price, Decimal):
+        return price.quantize(Decimal("0.01"))
+
+    cleaned_price = re.sub(r"[^\d.]", "", str(price or ""))
     if not cleaned_price:
         return Decimal("0.00")
 
     try:
-        return Decimal(cleaned_price)
+        return Decimal(cleaned_price).quantize(Decimal("0.01"))
     except InvalidOperation:
         return Decimal("0.00")
 
@@ -57,6 +67,31 @@ def get_json_payload(request):
 
 def json_error(message, status=400):
     return JsonResponse({"ok": False, "error": message}, status=status)
+
+
+def client_rate_limit_key(request, key_prefix):
+    forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    client_ip = forwarded_for.split(",")[0].strip() if forwarded_for else request.META.get("REMOTE_ADDR", "unknown")
+    return f"rate:{key_prefix}:{client_ip}"
+
+
+def rate_limit(*, key_prefix, limit, window_seconds):
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapped(request, *args, **kwargs):
+            rate_key = client_rate_limit_key(request, key_prefix)
+            current_count = cache.get(rate_key, 0)
+            if current_count >= limit:
+                return json_error("Too many requests. Please try again shortly.", status=429)
+            if current_count == 0:
+                cache.set(rate_key, 1, timeout=window_seconds)
+            else:
+                cache.incr(rate_key)
+            return view_func(request, *args, **kwargs)
+
+        return wrapped
+
+    return decorator
 
 
 def error_page(request, status_code, title, message):
@@ -79,6 +114,11 @@ def get_bearer_token(request):
     if not authorization.startswith(prefix):
         raise JWTValidationError("Authorization header must use Bearer token.")
     return authorization[len(prefix):].strip()
+
+
+def get_authenticated_user_from_bearer(request, *, expected_type="access"):
+    token = get_bearer_token(request)
+    return get_user_from_token(token, expected_type=expected_type)
 
 
 def get_page_size(request, default=DEFAULT_PAGE_SIZE):
@@ -104,7 +144,7 @@ def serialize_menu_item(item):
         "id": item.id,
         "name": item.name,
         "category": item.category,
-        "price": item.price,
+        "price": str(item.price),
         "description": item.description,
         "image_url": item.image_url,
     }
@@ -635,8 +675,7 @@ def healthcheck_view(request):
 @require_GET
 def my_orders_api_view(request):
     try:
-        token = get_bearer_token(request)
-        user, _ = get_user_from_token(token, expected_type="access")
+        user, _ = get_authenticated_user_from_bearer(request, expected_type="access")
     except JWTValidationError as exc:
         return json_error(str(exc), status=401)
 
@@ -649,13 +688,17 @@ def my_orders_api_view(request):
 
 
 @csrf_exempt
+@rate_limit(
+    key_prefix="order-status-update",
+    limit=PAYMENT_RATE_LIMIT_COUNT,
+    window_seconds=PAYMENT_RATE_LIMIT_WINDOW_SECONDS,
+)
 def order_status_api_view(request, order_id):
     if request.method != "PATCH":
         return json_error("Only PATCH is allowed.", status=405)
 
     try:
-        token = get_bearer_token(request)
-        user, _ = get_user_from_token(token, expected_type="access")
+        user, _ = get_authenticated_user_from_bearer(request, expected_type="access")
         payload = get_json_payload(request)
     except ValidationError as exc:
         return json_error(str(exc), status=400)
@@ -692,13 +735,17 @@ def order_status_api_view(request, order_id):
 
 
 @csrf_exempt
+@rate_limit(
+    key_prefix="razorpay-order-create",
+    limit=PAYMENT_RATE_LIMIT_COUNT,
+    window_seconds=PAYMENT_RATE_LIMIT_WINDOW_SECONDS,
+)
 def razorpay_order_api_view(request):
     if request.method != "POST":
         return json_error("Only POST is allowed.", status=405)
 
     try:
-        token = get_bearer_token(request)
-        user, _ = get_user_from_token(token, expected_type="access")
+        user, _ = get_authenticated_user_from_bearer(request, expected_type="access")
         payload = get_json_payload(request)
     except ValidationError as exc:
         return json_error(str(exc), status=400)
@@ -709,6 +756,8 @@ def razorpay_order_api_view(request):
         Order.objects.filter(user=user).prefetch_related("items__menu_item"),
         pk=payload.get("order_id"),
     )
+    if order.payment_status == "paid":
+        return json_error("Order is already paid.", status=409)
 
     try:
         razorpay_order = create_razorpay_order(
@@ -735,6 +784,77 @@ def razorpay_order_api_view(request):
 
 
 @csrf_exempt
+@rate_limit(
+    key_prefix="razorpay-webhook",
+    limit=PAYMENT_RATE_LIMIT_COUNT,
+    window_seconds=PAYMENT_RATE_LIMIT_WINDOW_SECONDS,
+)
+def razorpay_webhook_view(request):
+    if request.method != "POST":
+        return json_error("Only POST is allowed.", status=405)
+
+    payload_bytes = request.body or b""
+    signature = request.headers.get("X-Razorpay-Signature", "").strip()
+
+    try:
+        verify_razorpay_webhook_signature(payload_bytes=payload_bytes, signature=signature)
+        payload = json.loads(payload_bytes.decode("utf-8") or "{}")
+    except RazorpayConfigurationError as exc:
+        return json_error(str(exc), status=503)
+    except RazorpayAPIError as exc:
+        return json_error(str(exc), status=401)
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return json_error("Invalid webhook payload.", status=400)
+
+    event_type = payload.get("event", "").strip()
+    payment_entity = payload.get("payload", {}).get("payment", {}).get("entity", {})
+    razorpay_payment_id = (payment_entity.get("id") or "").strip()
+    razorpay_order_id = (payment_entity.get("order_id") or "").strip()
+
+    if not razorpay_order_id:
+        return JsonResponse({"ok": True, "message": "No order reference in webhook payload."})
+
+    event_id = request.headers.get("X-Razorpay-Event-Id", "").strip()
+    if not event_id:
+        event_id = f"{event_type}:{razorpay_payment_id or razorpay_order_id}"
+
+    order = (
+        Order.objects.filter(payment_provider="razorpay", payment_reference=razorpay_order_id)
+        .prefetch_related("items__menu_item")
+        .first()
+    )
+    if order is None:
+        return JsonResponse({"ok": True, "message": "No matching order for webhook."})
+
+    if PaymentEvent.objects.filter(provider_event_id=event_id).exists():
+        return JsonResponse({"ok": True, "message": "Webhook already processed."})
+
+    with transaction.atomic():
+        PaymentEvent.objects.create(
+            order=order,
+            provider="razorpay",
+            provider_event_id=event_id,
+            event_type=event_type or "unknown",
+            payment_id=razorpay_payment_id,
+            payload=payload,
+        )
+
+        if event_type == "payment.captured":
+            order.payment_status = "paid"
+            order.save(update_fields=["payment_status", "updated_at"])
+        elif event_type == "payment.failed":
+            order.payment_status = "failed"
+            order.save(update_fields=["payment_status", "updated_at"])
+
+    return JsonResponse({"ok": True, "message": "Webhook processed."})
+
+
+@csrf_exempt
+@rate_limit(
+    key_prefix="auth-signup",
+    limit=AUTH_RATE_LIMIT_COUNT,
+    window_seconds=AUTH_RATE_LIMIT_WINDOW_SECONDS,
+)
 def jwt_signup_view(request):
     if request.method != "POST":
         return json_error("Only POST is allowed.", status=405)
@@ -782,6 +902,11 @@ def jwt_signup_view(request):
 
 
 @csrf_exempt
+@rate_limit(
+    key_prefix="auth-login",
+    limit=AUTH_RATE_LIMIT_COUNT,
+    window_seconds=AUTH_RATE_LIMIT_WINDOW_SECONDS,
+)
 def jwt_login_view(request):
     if request.method != "POST":
         return json_error("Only POST is allowed.", status=405)
@@ -820,6 +945,11 @@ def jwt_login_view(request):
 
 
 @csrf_exempt
+@rate_limit(
+    key_prefix="auth-refresh",
+    limit=AUTH_RATE_LIMIT_COUNT,
+    window_seconds=AUTH_RATE_LIMIT_WINDOW_SECONDS,
+)
 def jwt_refresh_view(request):
     if request.method != "POST":
         return json_error("Only POST is allowed.", status=405)
@@ -847,8 +977,7 @@ def jwt_me_view(request):
         return json_error("Only GET is allowed.", status=405)
 
     try:
-        token = get_bearer_token(request)
-        user, _ = get_user_from_token(token, expected_type="access")
+        user, _ = get_authenticated_user_from_bearer(request, expected_type="access")
     except JWTValidationError as exc:
         return json_error(str(exc), status=401)
 

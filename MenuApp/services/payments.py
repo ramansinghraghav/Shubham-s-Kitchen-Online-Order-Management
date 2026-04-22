@@ -1,4 +1,6 @@
 import base64
+import hashlib
+import hmac
 import json
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
@@ -12,6 +14,23 @@ class RazorpayConfigurationError(Exception):
 
 class RazorpayAPIError(Exception):
     pass
+
+
+def verify_razorpay_webhook_signature(*, payload_bytes, signature):
+    webhook_secret = settings.RAZORPAY_WEBHOOK_SECRET
+    if not webhook_secret:
+        raise RazorpayConfigurationError("Razorpay webhook secret is not configured.")
+
+    if not signature:
+        raise RazorpayAPIError("Missing Razorpay webhook signature.")
+
+    expected_signature = hmac.new(
+        webhook_secret.encode("utf-8"),
+        payload_bytes,
+        hashlib.sha256,
+    ).hexdigest()
+    if not hmac.compare_digest(expected_signature, signature):
+        raise RazorpayAPIError("Invalid Razorpay webhook signature.")
 
 
 def create_razorpay_order(*, amount_rupees, receipt, notes=None):

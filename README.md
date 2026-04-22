@@ -78,7 +78,8 @@ python manage.py runserver
 
 ## Current status
 
-- JWT auth endpoints are available
-- Menu and order APIs are available
+- JWT auth endpoints are available via `/api/v1/auth/*` (legacy `/api/auth/*` kept for compatibility)
+- Menu and order APIs are available via `/api/v1/*`
 - Order status transitions are validated
-- Razorpay order creation is scaffolded through environment-based configuration
+- Razorpay order creation is available and webhook verification is supported at `/api/v1/payments/razorpay/webhook/`
+- OpenAPI schema and docs are available at `/api/schema/` and `/api/docs/`

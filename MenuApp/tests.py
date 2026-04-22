@@ -1,4 +1,6 @@
 import json
+import hashlib
+import hmac
 import shutil
 from datetime import timedelta
 from pathlib import Path
@@ -16,7 +18,7 @@ from django.templatetags.static import static
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import MenuItem, Profile, Order, OrderItem
+from .models import MenuItem, PaymentEvent, Profile, Order, OrderItem
 from .services.image_api import fetch_unsplash_image
 
 
@@ -1102,3 +1104,68 @@ class ViewTests(TestCase):
         order.refresh_from_db()
         self.assertEqual(order.payment_provider, "razorpay")
         self.assertEqual(order.payment_reference, "order_razorpay_123")
+
+    @override_settings(RAZORPAY_WEBHOOK_SECRET="test-webhook-secret")
+    def test_razorpay_webhook_marks_order_paid_and_is_idempotent(self):
+        user = User.objects.create_user(username="webhookuser", password="StrongPass123!")
+        order = Order.objects.create(
+            user=user,
+            receiver_name="Receiver",
+            receiver_phone="9876543210",
+            receiver_address="Street 1",
+            subtotal="90.00",
+            delivery_fee="35.00",
+            tax_amount="4.50",
+            grand_total="129.50",
+            payment_provider="razorpay",
+            payment_reference="order_test_123",
+            payment_status="pending",
+        )
+
+        payload = {
+            "event": "payment.captured",
+            "payload": {
+                "payment": {
+                    "entity": {
+                        "id": "pay_test_123",
+                        "order_id": "order_test_123",
+                    }
+                }
+            },
+        }
+        raw_payload = json.dumps(payload).encode("utf-8")
+        signature = hmac.new(
+            b"test-webhook-secret",
+            raw_payload,
+            hashlib.sha256,
+        ).hexdigest()
+
+        response = self.client.post(
+            reverse("razorpay_webhook_view_v1"),
+            data=raw_payload,
+            content_type="application/json",
+            HTTP_X_RAZORPAY_SIGNATURE=signature,
+            HTTP_X_RAZORPAY_EVENT_ID="evt_test_1",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        order.refresh_from_db()
+        self.assertEqual(order.payment_status, "paid")
+        self.assertEqual(PaymentEvent.objects.count(), 1)
+
+        second_response = self.client.post(
+            reverse("razorpay_webhook_view_v1"),
+            data=raw_payload,
+            content_type="application/json",
+            HTTP_X_RAZORPAY_SIGNATURE=signature,
+            HTTP_X_RAZORPAY_EVENT_ID="evt_test_1",
+        )
+
+        self.assertEqual(second_response.status_code, 200)
+        self.assertEqual(PaymentEvent.objects.count(), 1)
+
+    def test_api_v1_menu_route_returns_data(self):
+        response = self.client.get(reverse("menu_api_view_v1"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["ok"])

@@ -2,6 +2,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from datetime import timedelta
 import re
+from decimal import Decimal
 
 from django.contrib.auth.models import User
 
@@ -10,7 +11,7 @@ class MenuItem(models.Model):
 
     name = models.CharField(max_length=100)
     category = models.CharField(max_length=50)
-    price = models.CharField(max_length=50)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField()
     image = models.URLField(max_length=500, blank=True, null=True)  # Store image path or URL
 
@@ -90,7 +91,7 @@ class Order(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default="pending")
     payment_provider = models.CharField(max_length=30, blank=True)
-    payment_reference = models.CharField(max_length=100, blank=True)
+    payment_reference = models.CharField(max_length=100, blank=True, db_index=True)
     notes = models.TextField(blank=True)
     cook_prep_time = models.CharField(max_length=50, blank=True, null=True)
     cook_prep_minutes = models.PositiveIntegerField(blank=True, null=True)
@@ -197,6 +198,13 @@ class Order(models.Model):
         if save:
             self.save(update_fields=["payment_provider", "payment_reference", "payment_status", "updated_at"])
 
+    def mark_payment_failed(self, provider, reference="", *, save=True):
+        self.payment_provider = provider
+        self.payment_reference = reference
+        self.payment_status = "failed"
+        if save:
+            self.save(update_fields=["payment_provider", "payment_reference", "payment_status", "updated_at"])
+
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, related_name="items", on_delete=models.CASCADE)
@@ -228,4 +236,25 @@ class OrderItem(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         return super().save(*args, **kwargs)
+
+
+class PaymentEvent(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="payment_events")
+    provider = models.CharField(max_length=30)
+    provider_event_id = models.CharField(max_length=120, unique=True)
+    event_type = models.CharField(max_length=100)
+    payment_id = models.CharField(max_length=100, blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    processed_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, default="processed")
+
+    class Meta:
+        ordering = ["-processed_at"]
+        indexes = [
+            models.Index(fields=["provider", "event_type"]),
+            models.Index(fields=["order", "processed_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.provider}:{self.provider_event_id}"
 
