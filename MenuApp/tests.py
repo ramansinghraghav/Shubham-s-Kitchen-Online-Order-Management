@@ -1,7 +1,10 @@
+import json
 import shutil
 from datetime import timedelta
 from pathlib import Path
+from urllib.error import URLError
 from unittest.mock import patch
+from django.core.exceptions import ValidationError
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -64,6 +67,66 @@ class MenuItemModelTests(TestCase):
             shutil.rmtree(temp_media_root, ignore_errors=True)
 
 
+class OrderModelTests(TestCase):
+    def test_order_rejects_incorrect_totals(self):
+        order = Order(
+            receiver_name="Test User",
+            receiver_phone="9876543210",
+            receiver_address="Street 1",
+            subtotal="100.00",
+            delivery_fee="35.00",
+            tax_amount="5.00",
+            grand_total="120.00",
+        )
+
+        with self.assertRaises(ValidationError):
+            order.full_clean()
+
+    def test_order_status_transition_rules(self):
+        order = Order.objects.create(
+            receiver_name="Test User",
+            receiver_phone="9876543210",
+            receiver_address="Street 1",
+            subtotal="100.00",
+            delivery_fee="35.00",
+            tax_amount="5.00",
+            grand_total="140.00",
+        )
+
+        self.assertTrue(order.can_transition_to("accepted"))
+        order.transition_to("accepted")
+        self.assertEqual(order.status, "accepted")
+        self.assertFalse(order.can_transition_to("completed"))
+
+    def test_order_item_validates_line_total(self):
+        burger = MenuItem.objects.create(
+            name="Burger",
+            category="Burgers",
+            price="90",
+            description="Loaded from test",
+            image="images/burger.jpg",
+        )
+        order = Order.objects.create(
+            receiver_name="Test User",
+            receiver_phone="9876543210",
+            receiver_address="Street 1",
+            subtotal="100.00",
+            delivery_fee="35.00",
+            tax_amount="5.00",
+            grand_total="140.00",
+        )
+        item = OrderItem(
+            order=order,
+            menu_item=burger,
+            quantity=2,
+            unit_price="90.00",
+            line_total="100.00",
+        )
+
+        with self.assertRaises(ValidationError):
+            item.full_clean()
+
+
 class ImageApiTests(TestCase):
     @patch("MenuApp.services.image_api.urlopen")
     def test_fetch_unsplash_image_returns_first_result(self, mock_urlopen):
@@ -74,6 +137,19 @@ class ImageApiTests(TestCase):
         image_url = fetch_unsplash_image("Pizza", access_key="test-key")
 
         self.assertEqual(image_url, "https://images.example.com/pizza.jpg")
+
+    def test_fetch_unsplash_image_returns_none_without_api_key(self):
+        image_url = fetch_unsplash_image("Pizza", access_key="")
+
+        self.assertIsNone(image_url)
+
+    @patch("MenuApp.services.image_api.urlopen")
+    def test_fetch_unsplash_image_returns_none_on_network_failure(self, mock_urlopen):
+        mock_urlopen.side_effect = URLError("boom")
+
+        image_url = fetch_unsplash_image("Pizza", access_key="test-key")
+
+        self.assertIsNone(image_url)
 
     @patch("MenuApp.management.commands.fetch_menu_images.fetch_unsplash_image")
     def test_fetch_menu_images_command_updates_database(self, mock_fetch_image):
@@ -251,6 +327,29 @@ class ViewTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(self.client.session["cart"], {})
+
+    def test_cart_view_rejects_blank_receiver_details(self):
+        burger = MenuItem.objects.get(name="Burger")
+        session = self.client.session
+        session["cart"] = {str(burger.id): 1}
+        session.save()
+
+        response = self.client.post(
+            reverse("cart_view"),
+            {
+                "action": "place_order",
+                "receiver_name": "",
+                "receiver_phone": "",
+                "receiver_address": "",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Receiver name is required.")
+        self.assertContains(response, "Phone number is required.")
+        self.assertContains(response, "Address is required.")
+        self.assertEqual(Order.objects.count(), 0)
 
     def test_order_view_shows_last_placed_order_only(self):
         # Create a real order and store ID in session for display
@@ -705,6 +804,27 @@ class ViewTests(TestCase):
         self.assertEqual(profile.phone, "9876543210")
         self.assertEqual(profile.address, "Indore, Madhya Pradesh")
 
+    def test_profile_signup_rejects_duplicate_email(self):
+        User.objects.create_user(username="existing", password="StrongPass123!", email="same@example.com")
+
+        response = self.client.post(
+            reverse("profile_view"),
+            {
+                "action": "signup",
+                "username": "newuser",
+                "full_name": "New User",
+                "phone": "9876543210",
+                "email": "same@example.com",
+                "address": "Indore",
+                "password1": "StrongPass123!",
+                "password2": "StrongPass123!",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "An account with this email already exists.")
+        self.assertFalse(User.objects.filter(username="newuser").exists())
+
     def test_profile_view_shows_account_details_for_logged_in_user(self):
         user = User.objects.create_user(username="shubham", password="StrongPass123!")
         Profile.objects.create(user=user, full_name="Shubham Verma", phone="9876543210", address="Indore")
@@ -773,3 +893,212 @@ class ViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, "/profile/?mode=login")
         self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_jwt_signup_returns_token_pair(self):
+        response = self.client.post(
+            reverse("jwt_signup_view"),
+            data=json.dumps(
+                {
+                    "username": "jwtuser",
+                    "full_name": "JWT User",
+                    "email": "jwt@example.com",
+                    "phone": "9876543210",
+                    "address": "Indore",
+                    "password": "StrongPass123!",
+                    "confirm_password": "StrongPass123!",
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        body = response.json()
+        self.assertTrue(body["ok"])
+        self.assertIn("access", body["tokens"])
+        self.assertIn("refresh", body["tokens"])
+        self.assertTrue(User.objects.filter(username="jwtuser").exists())
+
+    def test_jwt_login_and_me_view(self):
+        user = User.objects.create_user(username="apiuser", password="StrongPass123!", email="api@example.com")
+        Profile.objects.create(user=user, full_name="API User", phone="9999999999", address="API Street")
+
+        login_response = self.client.post(
+            reverse("jwt_login_view"),
+            data=json.dumps({"username": "apiuser", "password": "StrongPass123!"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(login_response.status_code, 200)
+        access_token = login_response.json()["tokens"]["access"]
+
+        me_response = self.client.get(
+            reverse("jwt_me_view"),
+            HTTP_AUTHORIZATION=f"Bearer {access_token}",
+        )
+
+        self.assertEqual(me_response.status_code, 200)
+        self.assertEqual(me_response.json()["user"]["username"], "apiuser")
+        self.assertEqual(me_response.json()["user"]["full_name"], "API User")
+
+    def test_jwt_refresh_returns_new_token_pair(self):
+        user = User.objects.create_user(username="refreshuser", password="StrongPass123!")
+
+        login_response = self.client.post(
+            reverse("jwt_login_view"),
+            data=json.dumps({"username": "refreshuser", "password": "StrongPass123!"}),
+            content_type="application/json",
+        )
+        refresh_token = login_response.json()["tokens"]["refresh"]
+
+        refresh_response = self.client.post(
+            reverse("jwt_refresh_view"),
+            data=json.dumps({"refresh": refresh_token}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(refresh_response.status_code, 200)
+        self.assertTrue(refresh_response.json()["ok"])
+        self.assertIn("access", refresh_response.json()["tokens"])
+        self.assertIn("refresh", refresh_response.json()["tokens"])
+
+    def test_jwt_me_rejects_missing_token(self):
+        response = self.client.get(reverse("jwt_me_view"))
+
+        self.assertEqual(response.status_code, 401)
+        self.assertFalse(response.json()["ok"])
+
+    def test_healthcheck_view_returns_ok(self):
+        response = self.client.get(reverse("healthcheck_view"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "healthy")
+
+    def test_unknown_url_uses_friendly_404_page(self):
+        response = self.client.get("/does-not-exist/")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(response, "Page not found", status_code=404)
+
+    def test_menu_api_returns_paginated_results(self):
+        for index in range(15):
+            MenuItem.objects.create(
+                name=f"Item {index}",
+                category="Snacks",
+                price="50",
+                description="Snack",
+                image="images/burger.jpg",
+            )
+
+        response = self.client.get(reverse("menu_api_view"), {"page_size": 5, "page": 2})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["page"], 2)
+        self.assertEqual(response.json()["page_size"], 5)
+        self.assertEqual(len(response.json()["results"]), 5)
+
+    def test_my_orders_api_requires_bearer_token(self):
+        response = self.client.get(reverse("my_orders_api_view"))
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_my_orders_api_returns_paginated_orders(self):
+        user = User.objects.create_user(username="apiorders", password="StrongPass123!")
+        burger = MenuItem.objects.get(name="Burger")
+        Profile.objects.create(user=user, full_name="API Orders", phone="9999999999", address="Order Street")
+        for index in range(12):
+            order = Order.objects.create(
+                user=user,
+                receiver_name=f"Receiver {index}",
+                receiver_phone="9876543210",
+                receiver_address="Street 1",
+                subtotal="90.00",
+                delivery_fee="35.00",
+                tax_amount="4.50",
+                grand_total="129.50",
+            )
+            OrderItem.objects.create(order=order, menu_item=burger, quantity=1, unit_price="90.00", line_total="90.00")
+
+        login_response = self.client.post(
+            reverse("jwt_login_view"),
+            data=json.dumps({"username": "apiorders", "password": "StrongPass123!"}),
+            content_type="application/json",
+        )
+        access_token = login_response.json()["tokens"]["access"]
+
+        response = self.client.get(
+            reverse("my_orders_api_view"),
+            {"page_size": 5, "page": 2},
+            HTTP_AUTHORIZATION=f"Bearer {access_token}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["page"], 2)
+        self.assertEqual(len(response.json()["results"]), 5)
+
+    def test_staff_can_update_order_status_via_api(self):
+        cook = User.objects.create_user(username="cookapi", password="StrongPass123!", is_staff=True)
+        order = Order.objects.create(
+            receiver_name="Receiver",
+            receiver_phone="9876543210",
+            receiver_address="Street 1",
+            subtotal="90.00",
+            delivery_fee="35.00",
+            tax_amount="4.50",
+            grand_total="129.50",
+        )
+
+        login_response = self.client.post(
+            reverse("jwt_login_view"),
+            data=json.dumps({"username": "cookapi", "password": "StrongPass123!"}),
+            content_type="application/json",
+        )
+        access_token = login_response.json()["tokens"]["access"]
+
+        response = self.client.generic(
+            "PATCH",
+            reverse("order_status_api_view", args=[order.id]),
+            data=json.dumps({"status": "accepted", "prep_minutes": 20}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {access_token}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        order.refresh_from_db()
+        self.assertEqual(order.status, "accepted")
+        self.assertEqual(order.cook_prep_minutes, 20)
+
+    @patch("MenuApp.views.create_razorpay_order")
+    def test_razorpay_order_api_creates_payment_order(self, mock_create_razorpay_order):
+        user = User.objects.create_user(username="payuser", password="StrongPass123!")
+        burger = MenuItem.objects.get(name="Burger")
+        order = Order.objects.create(
+            user=user,
+            receiver_name="Receiver",
+            receiver_phone="9876543210",
+            receiver_address="Street 1",
+            subtotal="90.00",
+            delivery_fee="35.00",
+            tax_amount="4.50",
+            grand_total="129.50",
+        )
+        OrderItem.objects.create(order=order, menu_item=burger, quantity=1, unit_price="90.00", line_total="90.00")
+        mock_create_razorpay_order.return_value = {"id": "order_razorpay_123", "amount": 12950}
+
+        login_response = self.client.post(
+            reverse("jwt_login_view"),
+            data=json.dumps({"username": "payuser", "password": "StrongPass123!"}),
+            content_type="application/json",
+        )
+        access_token = login_response.json()["tokens"]["access"]
+
+        response = self.client.post(
+            reverse("razorpay_order_api_view"),
+            data=json.dumps({"order_id": order.id}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {access_token}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        order.refresh_from_db()
+        self.assertEqual(order.payment_provider, "razorpay")
+        self.assertEqual(order.payment_reference, "order_razorpay_123")

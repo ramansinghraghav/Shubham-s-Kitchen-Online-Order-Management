@@ -110,6 +110,22 @@
                     </div>
                 </div>
                 {% endfor %}
+
+                {% if page_obj and page_obj.paginator.num_pages > 1 %}
+                <nav class="mt-4" aria-label="Orders pagination">
+                    <ul class="pagination justify-content-center mb-0">
+                        <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+                            <a class="page-link" href="?page={% if page_obj.has_previous %}{{ page_obj.previous_page_number }}{% else %}1{% endif %}">Previous</a>
+                        </li>
+                        <li class="page-item disabled">
+                            <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                        </li>
+                        <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+                            <a class="page-link" href="?page={% if page_obj.has_next %}{{ page_obj.next_page_number }}{% else %}{{ page_obj.paginator.num_pages }}{% endif %}">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+                {% endif %}
             </div>
             {% else %}
             <div class="orders-empty">

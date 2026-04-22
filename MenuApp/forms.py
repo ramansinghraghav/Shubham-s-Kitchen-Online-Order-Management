@@ -1,4 +1,5 @@
 from django import forms
+from django.core.exceptions import ValidationError
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 
@@ -26,6 +27,22 @@ class SignUpForm(UserCreationForm):
                 field.widget.attrs["class"] = 'form-control form-control-sm'
             else:
                 field.widget.attrs["class"] = css_class
+            field.help_text = ""
+
+    def clean_email(self):
+        email = self.cleaned_data.get("email", "").strip().lower()
+        if email and User.objects.filter(email__iexact=email).exists():
+            raise ValidationError("An account with this email already exists.")
+        return email
+
+    def clean_phone(self):
+        return self.cleaned_data.get("phone", "").strip()
+
+    def clean_full_name(self):
+        full_name = self.cleaned_data.get("full_name", "").strip()
+        if not full_name:
+            raise ValidationError("Full name is required.")
+        return full_name
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -54,4 +71,12 @@ class ProfileForm(forms.ModelForm):
             if name == "profile_photo":
                 field.widget.attrs["class"] = "form-control form-control-sm"
 
+    def clean_phone(self):
+        return self.cleaned_data.get("phone", "").strip()
+
+    def clean_full_name(self):
+        full_name = self.cleaned_data.get("full_name", "").strip()
+        if not full_name:
+            raise ValidationError("Full name is required.")
+        return full_name
 

@@ -24,5 +24,10 @@ urlpatterns = [
     path('', include('MenuApp.urls'))
 ]
 
+handler400 = "MenuApp.views.handler400"
+handler403 = "MenuApp.views.handler403"
+handler404 = "MenuApp.views.handler404"
+handler500 = "MenuApp.views.handler500"
+
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

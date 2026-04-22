@@ -1,6 +1,7 @@
 import json
 from urllib.parse import urlencode
 from urllib.request import urlopen
+from urllib.error import HTTPError, URLError
 
 from django.conf import settings
 
@@ -11,7 +12,7 @@ UNSPLASH_SEARCH_URL = "https://api.unsplash.com/search/photos"
 def fetch_unsplash_image(query: str, access_key: str | None = None) -> str | None:
     api_key = access_key or settings.UNSPLASH_ACCESS_KEY
     if not api_key:
-        raise RuntimeError("UNSPLASH_ACCESS_KEY is missing. Add it to your .env file.")
+        return None
 
     params = urlencode(
         {
@@ -22,8 +23,11 @@ def fetch_unsplash_image(query: str, access_key: str | None = None) -> str | Non
         }
     )
 
-    with urlopen(f"{UNSPLASH_SEARCH_URL}?{params}", timeout=15) as response:
-        data = json.load(response)
+    try:
+        with urlopen(f"{UNSPLASH_SEARCH_URL}?{params}", timeout=15) as response:
+            data = json.load(response)
+    except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
+        return None
 
     results = data.get("results", [])
     if not results:

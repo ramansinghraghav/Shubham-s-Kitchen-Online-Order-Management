@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from datetime import timedelta
 import re
 
@@ -11,7 +12,7 @@ class MenuItem(models.Model):
     category = models.CharField(max_length=50)
     price = models.CharField(max_length=50)
     description = models.TextField()
-    image = models.URLField(blank=True, null=True)  # Store image path or URL
+    image = models.URLField(max_length=500, blank=True, null=True)  # Store image path or URL
 
     def __str__(self) -> str:
         return self.name
@@ -63,6 +64,20 @@ class Order(models.Model):
         ("completed", "Delivered"),
         ("cancelled", "Cancelled"),
     ]
+    PAYMENT_STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("paid", "Paid"),
+        ("failed", "Failed"),
+        ("refunded", "Refunded"),
+    ]
+    ALLOWED_STATUS_TRANSITIONS = {
+        "pending": {"accepted", "cancelled"},
+        "accepted": {"preparing", "cancelled"},
+        "preparing": {"ready", "cancelled"},
+        "ready": {"completed", "cancelled"},
+        "completed": set(),
+        "cancelled": set(),
+    }
 
     user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='orders')
     receiver_name = models.CharField(max_length=120)
@@ -73,6 +88,10 @@ class Order(models.Model):
     tax_amount = models.DecimalField(max_digits=10, decimal_places=2)
     grand_total = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default="pending")
+    payment_provider = models.CharField(max_length=30, blank=True)
+    payment_reference = models.CharField(max_length=100, blank=True)
+    notes = models.TextField(blank=True)
     cook_prep_time = models.CharField(max_length=50, blank=True, null=True)
     cook_prep_minutes = models.PositiveIntegerField(blank=True, null=True)
     cook_extra_minutes = models.PositiveIntegerField(default=0)
@@ -82,6 +101,13 @@ class Order(models.Model):
 
     def __str__(self):
         return f"Order #{self.pk} - {self.receiver_name}" 
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status", "created_at"]),
+            models.Index(fields=["payment_status", "created_at"]),
+        ]
 
     @property
     def item_count(self):
@@ -119,6 +145,58 @@ class Order(models.Model):
 
         return self.cook_prep_started_at + timedelta(minutes=total_minutes)
 
+    def clean(self):
+        errors = {}
+
+        if not self.receiver_name.strip():
+            errors["receiver_name"] = "Receiver name is required."
+
+        if len(re.sub(r"\D", "", self.receiver_phone or "")) < 10:
+            errors["receiver_phone"] = "Enter a valid phone number."
+
+        if not self.receiver_address.strip():
+            errors["receiver_address"] = "Receiver address is required."
+
+        if self.subtotal < 0 or self.delivery_fee < 0 or self.tax_amount < 0 or self.grand_total < 0:
+            errors["grand_total"] = "Order totals cannot be negative."
+
+        expected_total = self.subtotal + self.delivery_fee + self.tax_amount
+        if self.grand_total != expected_total:
+            errors["grand_total"] = "Grand total must equal subtotal + delivery fee + tax amount."
+
+        if self.cook_extra_minutes and self.cook_prep_minutes is None:
+            errors["cook_extra_minutes"] = "Base prep time is required before adding extra minutes."
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.receiver_name = self.receiver_name.strip()
+        self.receiver_phone = self.receiver_phone.strip()
+        self.receiver_address = self.receiver_address.strip()
+        self.notes = self.notes.strip()
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def can_transition_to(self, new_status):
+        return new_status in self.ALLOWED_STATUS_TRANSITIONS.get(self.status, set())
+
+    def transition_to(self, new_status, *, save=True):
+        if new_status == self.status:
+            return
+        if not self.can_transition_to(new_status):
+            raise ValidationError(f"Cannot move order from {self.status} to {new_status}.")
+        self.status = new_status
+        if save:
+            self.save(update_fields=["status", "updated_at"])
+
+    def mark_payment(self, provider, reference, *, save=True):
+        self.payment_provider = provider
+        self.payment_reference = reference
+        self.payment_status = "paid"
+        if save:
+            self.save(update_fields=["payment_provider", "payment_reference", "payment_status", "updated_at"])
+
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, related_name="items", on_delete=models.CASCADE)
@@ -129,4 +207,25 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.menu_item.name} x {self.quantity}"
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=models.Q(quantity__gt=0), name="order_item_quantity_gt_zero"),
+            models.CheckConstraint(condition=models.Q(unit_price__gte=0), name="order_item_unit_price_gte_zero"),
+            models.CheckConstraint(condition=models.Q(line_total__gte=0), name="order_item_line_total_gte_zero"),
+        ]
+
+    def clean(self):
+        errors = {}
+        if self.quantity <= 0:
+            errors["quantity"] = "Quantity must be greater than zero."
+        expected_total = self.unit_price * self.quantity
+        if self.line_total != expected_total:
+            errors["line_total"] = "Line total must equal unit price multiplied by quantity."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
 

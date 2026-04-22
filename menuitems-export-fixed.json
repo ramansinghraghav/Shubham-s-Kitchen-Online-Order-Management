@@ -1,0 +1,937 @@
+[
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 1,
+    "fields": {
+      "name": "Veg Pizza",
+      "category": "Pizza",
+      "price": "₹140",
+      "description": "Classic vegetable pizza",
+      "image": "https://images.unsplash.com/photo-1743615357602-f0711d1bc06f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxWZWclMjBQaXp6YSUyMGZvb2R8ZW58MHwwfHx8MTc3NDg2MzQ5Nnww&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 2,
+    "fields": {
+      "name": "Mushroom Pizza",
+      "category": "Pizza",
+      "price": "₹160",
+      "description": "Delicious mushroom pizza",
+      "image": "https://images.unsplash.com/photo-1717883235373-ef10b2a745a3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxNdXNocm9vbSUyMFBpenphJTIwZm9vZHxlbnwwfDB8fHwxNzc0ODYzNDk2fDA&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 3,
+    "fields": {
+      "name": "Paneer Pizza",
+      "category": "Pizza",
+      "price": "₹170",
+      "description": "Tasty paneer pizza",
+      "image": "https://images.unsplash.com/photo-1573821663912-569905455b1c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxQYW5lZXIlMjBQaXp6YSUyMGZvb2R8ZW58MHwwfHx8MTc3NDg2MzQ5N3ww&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 4,
+    "fields": {
+      "name": "Cheese Pizza",
+      "category": "Pizza",
+      "price": "₹160",
+      "description": "Delicious cheese pizza",
+      "image": "https://images.unsplash.com/photo-1559978137-8c560d91e9e1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxDaGVlc2UlMjBQaXp6YSUyMGZvb2R8ZW58MHwwfHx8MTc3NDg2MzQ5OHww&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 5,
+    "fields": {
+      "name": "Tandoori Pizza",
+      "category": "Pizza",
+      "price": "₹180",
+      "description": "Classic Tandoori pizza",
+      "image": "https://images.unsplash.com/photo-1620374230612-265d5045c85b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxUYW5kb29yaSUyMFBpenphJTIwZm9vZHxlbnwwfDB8fHwxNzc0ODYzNDk5fDA&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 6,
+    "fields": {
+      "name": "Shubham,s kitchen Special Pizza",
+      "category": "Pizza",
+      "price": "200",
+      "description": "Premium pizza",
+      "image": "images/premium_pizza.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 7,
+    "fields": {
+      "name": "Veggie Burger",
+      "category": "Burgers",
+      "price": "₹50",
+      "description": "Grilled patty with fresh greens",
+      "image": "https://images.unsplash.com/photo-1542554762515-82be5d8f0bfa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxWZWdnaWUlMjBCdXJnZXIlMjBmb29kfGVufDB8MHx8fDE3NzQ4NjM1MDB8MA&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 8,
+    "fields": {
+      "name": "Cheese Burger",
+      "category": "Burgers",
+      "price": "₹60",
+      "description": "Juicy patty with melted cheese",
+      "image": "https://images.unsplash.com/photo-1604366247250-b06cf35fc38a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxDaGVlc2UlMjBCdXJnZXIlMjBmb29kfGVufDB8MHx8fDE3NzQ4NjM1MDF8MA&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 9,
+    "fields": {
+      "name": "Double Tikki Burger",
+      "category": "Burgers",
+      "price": "₹70",
+      "description": "Two patties with fresh veggies",
+      "image": "https://images.unsplash.com/photo-1633821773816-0d50391e7b1a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxEb3VibGUlMjBUaWtraSUyMEJ1cmdlciUyMGZvb2R8ZW58MHwwfHx8MTc3NDg2MzUwMnww&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 10,
+    "fields": {
+      "name": "Cheese Double Tikki Burger",
+      "category": "Burgers",
+      "price": "₹80",
+      "description": "Two patties with melted cheese",
+      "image": "https://images.unsplash.com/photo-1633821773816-0d50391e7b1a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxDaGVlc2UlMjBEb3VibGUlMjBUaWtraSUyMEJ1cmdlciUyMGZvb2R8ZW58MHwwfHx8MTc3NDg2MzUwM3ww&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 11,
+    "fields": {
+      "name": "Veg-Nodles",
+      "category": "Chinese",
+      "price": "₹50",
+      "description": "Stir-fried noodles with veggies",
+      "image": "https://images.unsplash.com/photo-1651718243509-742f5bd5836c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxWZWctTm9kbGVzJTIwZm9vZHxlbnwwfDB8fHwxNzc0ODYzNTA2fDA&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 12,
+    "fields": {
+      "name": "Schezwan Noodles",
+      "category": "Chinese",
+      "price": "₹60",
+      "description": "Spicy Schezwan noodles",
+      "image": "images/schezwan_noodles.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 13,
+    "fields": {
+      "name": "Hakka Noodles",
+      "category": "Chinese",
+      "price": "₹70",
+      "description": "Spicy Hakka noodles",
+      "image": "https://images.unsplash.com/photo-1601565960311-8a7f4e1ab709?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxIYWtrYSUyME5vb2RsZXMlMjBmb29kfGVufDB8MHx8fDE3NzQ4NjM1MDh8MA&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 14,
+    "fields": {
+      "name": "Manchurian Noodles",
+      "category": "Chinese",
+      "price": "₹80",
+      "description": "Spicy Manchurian noodles",
+      "image": "images/manchurian_noodles.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 15,
+    "fields": {
+      "name": "Chilli Paneer Dry",
+      "category": "Chinese",
+      "price": "₹120",
+      "description": "Spicy chilli paneer",
+      "image": "https://images.unsplash.com/photo-1631161574757-6b3715fc7428?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxDaGlsbGklMjBQYW5lZXIlMjBEcnklMjBmb29kfGVufDB8MHx8fDE3NzQ4NjM1MDl8MA&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 16,
+    "fields": {
+      "name": "Chilli Paneer Gravy",
+      "category": "Chinese",
+      "price": "₹130",
+      "description": "Spicy chilli paneer",
+      "image": "https://images.unsplash.com/photo-1635357235157-f6e8e00be9ed?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxDaGlsbGklMjBQYW5lZXIlMjBHcmF2eSUyMGZvb2R8ZW58MHwwfHx8MTc3NDg2MzUxMHww&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 17,
+    "fields": {
+      "name": "Manchurian-Dry",
+      "category": "Chinese",
+      "price": "₹80",
+      "description": "Fried vegetable balls in spicy sauce",
+      "image": "images/gravy_manchurian.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 18,
+    "fields": {
+      "name": "Manchurian-Gravy",
+      "category": "Chinese",
+      "price": "₹100",
+      "description": "Fried vegetable balls in spicy sauce",
+      "image": "https://images.unsplash.com/photo-1586981114766-708f09a71e20?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxNYW5jaHVyaWFuLUdyYXZ5JTIwZm9vZHxlbnwwfDB8fHwxNzc0ODYzNTEyfDA&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 19,
+    "fields": {
+      "name": "Crispy Corn",
+      "category": "Chinese",
+      "price": "₹90",
+      "description": "Crispy cone with vegetable filling",
+      "image": "https://images.unsplash.com/photo-1654931801226-b1866b3720d8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxDcmlzcHklMjBDb3JuJTIwZm9vZHxlbnwwfDB8fHwxNzc0ODYzNTEzfDA&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 20,
+    "fields": {
+      "name": "Chilli Potato",
+      "category": "Chinese",
+      "price": "₹90",
+      "description": "Spicy chilli potato",
+      "image": "https://images.unsplash.com/photo-1723763246578-99e614b2a91b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxDaGlsbGklMjBQb3RhdG8lMjBmb29kfGVufDB8MHx8fDE3NzQ4NjM1MTN8MA&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 21,
+    "fields": {
+      "name": "Honey Chilli Potato",
+      "category": "Chinese",
+      "price": "₹100",
+      "description": "Honey chilli potato",
+      "image": "https://images.unsplash.com/photo-1718506922093-ecca70ddba63?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxIb25leSUyMENoaWxsaSUyMFBvdGF0byUyMGZvb2R8ZW58MHwwfHx8MTc3NDg2MzUxNHww&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 22,
+    "fields": {
+      "name": "Chowmein",
+      "category": "Chinese",
+      "price": "₹90",
+      "description": "Stir-fried noodles with veggies",
+      "image": "https://images.unsplash.com/photo-1585503913867-f3382c5d1122?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxDaG93bWVpbiUyMGZvb2R8ZW58MHwwfHx8MTc3NDg2MzUxNXww&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 23,
+    "fields": {
+      "name": "Butter Paneer Masala",
+      "category": "Indian Special",
+      "price": "for half ₹110, full ₹180",
+      "description": "Spicy butter paneer in rich gravy",
+      "image": "https://images.unsplash.com/photo-1708793873401-e8c6c153b76a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxCdXR0ZXIlMjBQYW5lZXIlMjBNYXNhbGElMjBmb29kfGVufDB8MHx8fDE3NzQ4NjM1MTZ8MA&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 24,
+    "fields": {
+      "name": "Sev Tamatar",
+      "category": "Indian Special",
+      "price": "for half ₹70, full ₹130",
+      "description": "Crispy sev with fresh tomatoes",
+      "image": "images/sev_tamatar.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 25,
+    "fields": {
+      "name": "Sev Bhaji",
+      "category": "Indian Special",
+      "price": "for half ₹80, full ₹140",
+      "description": "Spicy milky curry with Sev",
+      "image": "images/Sev_bhaji.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 26,
+    "fields": {
+      "name": "Chola Paneer",
+      "category": "Indian Special",
+      "price": "for half ₹100, full ₹160",
+      "description": "Spicy chola with paneer",
+      "image": "images/chola_paneer.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 27,
+    "fields": {
+      "name": "Matar Paneer",
+      "category": "Indian Special",
+      "price": "for half ₹110, full ₹180",
+      "description": "Spicy matar with paneer",
+      "image": "images/matar_paneer.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 28,
+    "fields": {
+      "name": "Kadai Paneer",
+      "category": "Indian Special",
+      "price": "for half ₹110, full ₹180",
+      "description": "Spicy kadai paneer",
+      "image": "images/kadai_paneer.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 29,
+    "fields": {
+      "name": "Shai Paneer",
+      "category": "Indian Special",
+      "price": "for half ₹120, full 230",
+      "description": "Spicy shai paneer",
+      "image": "images/shai_paneer.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 30,
+    "fields": {
+      "name": "Kaju Kari",
+      "category": "Indian Special",
+      "price": "for half ₹130, full ₹250",
+      "description": "Spicy kaju kari",
+      "image": "images/kaju_kari.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 31,
+    "fields": {
+      "name": "Malai Kofta",
+      "category": "Indian Special",
+      "price": "for half ₹140, full ₹260",
+      "description": "Spicy malai kofta",
+      "image": "https://images.unsplash.com/photo-1693970717381-0d53d39d71ff?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxNYWxhaSUyMEtvZnRhJTIwZm9vZHxlbnwwfDB8fHwxNzc0ODYzNTI0fDA&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 32,
+    "fields": {
+      "name": "Dal Makhani",
+      "category": "Indian Special",
+      "price": "for half ₹100, full ₹180",
+      "description": "Spicy dal makhani",
+      "image": "https://images.unsplash.com/photo-1586981114766-708f09a71e20?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxEYWwlMjBNYWtoYW5pJTIwZm9vZHxlbnwwfDB8fHwxNzc0ODYzNTI2fDA&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 33,
+    "fields": {
+      "name": "Dal Tadka",
+      "category": "Indian Special",
+      "price": "for half ₹70, full ₹100",
+      "description": "Spicy dal tadka",
+      "image": "https://images.unsplash.com/photo-1626500155537-93690c24099e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxEYWwlMjBUYWRrYSUyMGZvb2R8ZW58MHwwfHx8MTc3NDg2MzUyN3ww&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 34,
+    "fields": {
+      "name": "Veg Raita",
+      "category": "Indian Special",
+      "price": "₹80",
+      "description": "Refreshing yogurt with veggies",
+      "image": "images/raita.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 35,
+    "fields": {
+      "name": "Tava Chapati",
+      "category": "Indian Special",
+      "price": "₹8",
+      "description": "Soft and fluffy chapati",
+      "image": "https://images.unsplash.com/photo-1713780131281-61ec701ebb6f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxUYXZhJTIwQ2hhcGF0aSUyMGZvb2R8ZW58MHwwfHx8MTc3NDg2MzUyOXww&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 36,
+    "fields": {
+      "name": "Butter Chapati",
+      "category": "Indian Special",
+      "price": "₹10",
+      "description": "Soft chapati with butter",
+      "image": "https://images.unsplash.com/photo-1710143608680-6ed21d27fd82?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxCdXR0ZXIlMjBDaGFwYXRpJTIwZm9vZHxlbnwwfDB8fHwxNzc0ODYzNTMwfDA&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 37,
+    "fields": {
+      "name": "Oreo Shake",
+      "category": "Shakes",
+      "price": "₹100",
+      "description": "Rich and creamy Oreo shake",
+      "image": "https://images.unsplash.com/photo-1645878490155-a0dbcd313645?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxPcmVvJTIwU2hha2UlMjBmb29kfGVufDB8MHx8fDE3NzQ4NjM1MzB8MA&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 38,
+    "fields": {
+      "name": "Kikat Shake",
+      "category": "Shakes",
+      "price": "₹100",
+      "description": "Rich and creamy Kikat shake",
+      "image": "https://images.unsplash.com/photo-1735125136060-27dfe25bc3df?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxLaWthdCUyMFNoYWtlJTIwZm9vZHxlbnwwfDB8fHwxNzc0ODYzNTMxfDA&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 39,
+    "fields": {
+      "name": "Banana Shake",
+      "category": "Shakes",
+      "price": "₹50",
+      "description": "Rich and creamy banana shake",
+      "image": "https://images.unsplash.com/photo-1645878490155-a0dbcd313645?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxCYW5hbmElMjBTaGFrZSUyMGZvb2R8ZW58MHwwfHx8MTc3NDg2MzUzMnww&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 40,
+    "fields": {
+      "name": "Pineapple Shake",
+      "category": "Shakes",
+      "price": "₹50",
+      "description": "Rich and creamy pineapple shake",
+      "image": "https://images.unsplash.com/photo-1671063334743-e2ad4c2cdea4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxQaW5lYXBwbGUlMjBTaGFrZSUyMGZvb2R8ZW58MHwwfHx8MTc3NDg2MzUzM3ww&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 41,
+    "fields": {
+      "name": "Blackberry Shake",
+      "category": "Shakes",
+      "price": "₹50",
+      "description": "Rich and creamy blackberry shake",
+      "image": "https://images.unsplash.com/photo-1747045142277-52f76d35d327?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxCbGFja2JlcnJ5JTIwU2hha2UlMjBmb29kfGVufDB8MHx8fDE3NzQ4NjM1MzR8MA&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 42,
+    "fields": {
+      "name": "Black Current Shake",
+      "category": "Shakes",
+      "price": "₹50",
+      "description": "Rich and creamy black current shake",
+      "image": "images/black_current_shake.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 43,
+    "fields": {
+      "name": "Orange Shake",
+      "category": "Shakes",
+      "price": "₹50",
+      "description": "Rich and creamy orange shake",
+      "image": "https://images.unsplash.com/photo-1734747643067-6d4e0f705a00?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxPcmFuZ2UlMjBTaGFrZSUyMGZvb2R8ZW58MHwwfHx8MTc3NDg2MzUzNnww&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 44,
+    "fields": {
+      "name": "Chiku Shake",
+      "category": "Shakes",
+      "price": "₹50",
+      "description": "Rich and creamy chiku shake",
+      "image": "images/chiku_shake.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 45,
+    "fields": {
+      "name": "Cold Coffee",
+      "category": "Shakes",
+      "price": "₹70",
+      "description": "Rich and creamy cold coffee",
+      "image": "https://images.unsplash.com/photo-1625242662341-5e92c5101338?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxDb2xkJTIwQ29mZmVlJTIwZm9vZHxlbnwwfDB8fHwxNzc0ODYzNTM4fDA&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 46,
+    "fields": {
+      "name": "Hazel Nut Shake",
+      "category": "Shakes",
+      "price": "₹90",
+      "description": "Rich and creamy hazel nut shake",
+      "image": "https://images.unsplash.com/photo-1715861696705-67ccf052baf5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxIYXplbCUyME51dCUyMFNoYWtlJTIwZm9vZHxlbnwwfDB8fHwxNzc0ODYzNTM5fDA&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 47,
+    "fields": {
+      "name": "Triamisu Shake",
+      "category": "Shakes",
+      "price": "₹90",
+      "description": "Rich and creamy triamisu shake",
+      "image": "images/triamisu.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 48,
+    "fields": {
+      "name": "Hot Coffee",
+      "category": "Shakes",
+      "price": "₹30",
+      "description": "Rich and creamy hot coffee",
+      "image": "https://images.unsplash.com/photo-1753572736770-6abc29d123d8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxIb3QlMjBDb2ZmZWUlMjBmb29kfGVufDB8MHx8fDE3NzQ4NjM1NDF8MA&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 49,
+    "fields": {
+      "name": "Butter Pav Bhaji",
+      "category": "Indian Special",
+      "price": "₹70",
+      "description": "Spicy butter vegetable curry with bread",
+      "image": "https://images.unsplash.com/photo-1714799263291-272975db795a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxCdXR0ZXIlMjBQYXYlMjBCaGFqaSUyMGZvb2R8ZW58MHwwfHx8MTc3NDg2MzU0Mnww&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 50,
+    "fields": {
+      "name": "Pav Bhaji",
+      "category": "Indian Special",
+      "price": "₹60",
+      "description": "Spicy vegetable curry with bread",
+      "image": "https://images.unsplash.com/photo-1626132647523-66f5bf380027?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTA0NDF8MHwxfHNlYXJjaHwxfHxQYXYlMjBCaGFqaSUyMGZvb2R8ZW58MHwwfHx8MTc3NDg2MzU0Mnww&ixlib=rb-4.1.0&q=80&w=400"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 51,
+    "fields": {
+      "name": "Aloo Paratha",
+      "category": "Indian Special",
+      "price": "₹80",
+      "description": "Spicy potato stuffed paratha",
+      "image": "images/aloo_paratha.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 52,
+    "fields": {
+      "name": "Gobi Paratha",
+      "category": "Indian Special",
+      "price": "₹80",
+      "description": "Spicy cauliflower stuffed paratha",
+      "image": "images/gobi_paratha.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 53,
+    "fields": {
+      "name": "Paneer Paratha",
+      "category": "Indian Special",
+      "price": "₹100",
+      "description": "Spicy paneer stuffed paratha",
+      "image": "images/paneer_paratha.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 54,
+    "fields": {
+      "name": "Chole Bhature",
+      "category": "Indian Special",
+      "price": "₹70",
+      "description": "Spicy chickpeas with deep-fried bread",
+      "image": "images/chole_bhature.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 55,
+    "fields": {
+      "name": "Veg Momos",
+      "category": "Momos",
+      "price": "₹50",
+      "description": "Steamed or fried dumplings with filling",
+      "image": "images/momos.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 56,
+    "fields": {
+      "name": "Fried Momos",
+      "category": "Momos",
+      "price": "₹60",
+      "description": "Crispy fried dumplings with filling",
+      "image": "images/fried_momos.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 57,
+    "fields": {
+      "name": "Shezwan Momos",
+      "category": "Momos",
+      "price": "₹70",
+      "description": "Spicy Schezwan dumplings with filling",
+      "image": "images/schezwan_momos.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 58,
+    "fields": {
+      "name": "Cheese Momos",
+      "category": "Momos",
+      "price": "₹80",
+      "description": "Cheese-filled dumplings",
+      "image": "images/cheese_momos.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 59,
+    "fields": {
+      "name": "Tandori Gravy Momos",
+      "category": "Momos",
+      "price": "₹100",
+      "description": "Tandoori gravy dumplings with filling",
+      "image": "images/tandoori_gravy_momos.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 60,
+    "fields": {
+      "name": "Veg Rolls",
+      "category": "Rolls",
+      "price": "₹50",
+      "description": "Crispy rolls with vegetable filling",
+      "image": "images/veg_rolls.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 61,
+    "fields": {
+      "name": "Veg Cheese Rolls",
+      "category": "Rolls",
+      "price": "₹70",
+      "description": "Crispy rolls with vegetable and cheese filling",
+      "image": "images/veg_cheese_rolls.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 62,
+    "fields": {
+      "name": "Tandori Rolls",
+      "category": "Rolls",
+      "price": "₹80",
+      "description": "Crispy rolls with tandoori filling",
+      "image": "images/tandoori_rolls.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 63,
+    "fields": {
+      "name": "Veg Paneer Rolls",
+      "category": "Rolls",
+      "price": "₹100",
+      "description": "Crispy rolls with vegetable and paneer filling",
+      "image": "images/veg_paneer_rolls.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 64,
+    "fields": {
+      "name": "French Fries",
+      "category": "Snacks",
+      "price": "Half ₹60, Full ₹100",
+      "description": "Crispy golden fries",
+      "image": "images/french_fries.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 65,
+    "fields": {
+      "name": "Paneer Pakora",
+      "category": "Snacks",
+      "price": "₹110",
+      "description": "Crispy paneer fritters",
+      "image": "images/paneer_pakora.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 66,
+    "fields": {
+      "name": "Mayo Sandwich",
+      "category": "Sandwiches",
+      "price": "₹50",
+      "description": "Delicious sandwich with mayo and veggies",
+      "image": "images/mayo_sandwich.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 67,
+    "fields": {
+      "name": "Punjabi Sandwich",
+      "category": "Sandwiches",
+      "price": "₹50",
+      "description": "Delicious sandwich with Punjabi flavors",
+      "image": "images/punjabi_sandwich.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 68,
+    "fields": {
+      "name": "Veg Sandwich",
+      "category": "Sandwiches",
+      "price": "₹70",
+      "description": "Delicious sandwich with fresh veggies",
+      "image": "images/veg_sandwich.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 69,
+    "fields": {
+      "name": "Cheese Sandwich",
+      "category": "Sandwiches",
+      "price": "₹100",
+      "description": "Delicious sandwich with cheese and veggies",
+      "image": "images/cheese_sandwich.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 70,
+    "fields": {
+      "name": "Tandoori Sandwich",
+      "category": "Sandwiches",
+      "price": "₹100",
+      "description": "Delicious sandwich with tandoori filling",
+      "image": "images/tandoori_sandwich.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 71,
+    "fields": {
+      "name": "Paneer Sandwich",
+      "category": "Sandwiches",
+      "price": "₹120",
+      "description": "Delicious sandwich with paneer filling",
+      "image": "images/paneer_sandwich.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 72,
+    "fields": {
+      "name": "Veg Hot Dog",
+      "category": "Hot Dogs",
+      "price": "₹50",
+      "description": "Delicious hot dog with veggie filling",
+      "image": "images/veg_hot_dog.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 73,
+    "fields": {
+      "name": "Cheese Hot Dog",
+      "category": "Hot Dogs",
+      "price": "₹60",
+      "description": "Delicious hot dog with cheese filling",
+      "image": "images/cheese_hot_dog.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 74,
+    "fields": {
+      "name": "Tandoori Hot Dog",
+      "category": "Hot Dogs",
+      "price": "₹70",
+      "description": "Delicious hot dog with tandoori filling",
+      "image": "images/tandoori_hot_dog.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 75,
+    "fields": {
+      "name": "Cheese Patties",
+      "category": "Patties",
+      "price": "₹40",
+      "description": "Crispy patties with cheese filling",
+      "image": "images/cheese_patties.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 76,
+    "fields": {
+      "name": "Tandoori Patties",
+      "category": "Patties",
+      "price": "₹50",
+      "description": "Crispy patties with tandoori filling",
+      "image": "images/tandoori_patties.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 77,
+    "fields": {
+      "name": "Tandori Cheese Patties",
+      "category": "Patties",
+      "price": "₹60",
+      "description": "Crispy patties with tandoori and cheese filling",
+      "image": "images/tandoori_cheese_patties.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 78,
+    "fields": {
+      "name": "Tandoori Paneer Cheese Patties",
+      "category": "Patties",
+      "price": "₹70",
+      "description": "Crispy patties with tandoori, paneer and cheese filling",
+      "image": "images/tandoori_paneer_cheese_patties.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 79,
+    "fields": {
+      "name": "Red cheese Pasta",
+      "category": "Pasta",
+      "price": "₹80",
+      "description": "Delicious pasta with red sauce and cheese",
+      "image": "images/red_cheese_pasta.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 80,
+    "fields": {
+      "name": "White cheese Pasta",
+      "category": "Pasta",
+      "price": "₹100",
+      "description": "Delicious pasta with white sauce and cheese",
+      "image": "images/white_cheese_pasta.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 81,
+    "fields": {
+      "name": "Tandoori cheese Pasta",
+      "category": "Pasta",
+      "price": "₹90",
+      "description": "Delicious pasta with tandoori sauce and cheese",
+      "image": "images/tandoori_cheese_pasta.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 82,
+    "fields": {
+      "name": "Veg masala Meggi",
+      "category": "Meggi",
+      "price": "₹50",
+      "description": "Delicious masala meggies with veggies",
+      "image": "images/veg_masala_meggi.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 83,
+    "fields": {
+      "name": "Cheese Meggi",
+      "category": "Meggi",
+      "price": "₹60",
+      "description": "Delicious cheese meggies with veggies",
+      "image": "images/cheese_meggi.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 84,
+    "fields": {
+      "name": "Tandoori Meggi",
+      "category": "Meggi",
+      "price": "₹70",
+      "description": "Delicious tandoori meggies with veggies",
+      "image": "images/tandoori_meggi.jpg"
+    }
+  },
+  {
+    "model": "MenuApp.menuitem",
+    "pk": 85,
+    "fields": {
+      "name": "Tandoori Cheese Meggi",
+      "category": "Meggi",
+      "price": "₹80",
+      "description": "Delicious tandoori cheese meggies with veggies",
+      "image": "images/tandoori_cheese_meggi.jpg"
+    }
+  }
+]
