@@ -1,4 +1,5 @@
 from django.contrib import admin
+from .forms import MenuItemAdminForm
 from .models import MenuItem, Order, OrderItem, Profile
 
 admin.site.site_header = "SHUBHAM's KITCHEN Admin Portal"
@@ -7,9 +8,14 @@ admin.site.index_title = "Welcome to SHUBHAM's KITCHEN Admin   Portal"
 
 @admin.register(MenuItem)
 class MenuItemAdmin(admin.ModelAdmin):
-    list_display = ("name", "category", "price")
+    form = MenuItemAdminForm
+    list_display = ("name", "category", "full_price", "half_price", "supports_portions")
     search_fields = ("name", "category", "description")
     list_filter = ("category",)
+    fieldsets = (
+        ("Basic", {"fields": ("name", "category", "description", "image")}),
+        ("Pricing", {"fields": ("full_price", "half_price")}),
+    )
 
 
 @admin.register(Profile)

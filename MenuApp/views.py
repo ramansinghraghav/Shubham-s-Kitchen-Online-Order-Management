@@ -6,7 +6,9 @@ from functools import wraps
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -31,6 +33,10 @@ from .services.payments import (
 DELIVERY_FEE = Decimal("35.00")
 TAX_RATE = Decimal("0.05")
 ORDER_PAGE_HISTORY_HOURS = 2
+PAYMENT_WINDOW_MINUTES = 5
+AUTO_ACCEPT_MINUTES = 5
+AUTO_PREPARING_MINUTES = 15
+AUTO_READY_MINUTES = 10
 INITIAL_PREP_MINUTE_OPTIONS = (15, 20, 25)
 EXTRA_PREP_MINUTE_OPTIONS = (5, 10)
 COOK_HISTORY_FILTERS = ("week", "month", "year")
@@ -144,7 +150,12 @@ def serialize_menu_item(item):
         "id": item.id,
         "name": item.name,
         "category": item.category,
-        "price": str(item.price),
+        "price": str(item.display_price),
+        "half_price": str(item.half_price) if item.half_price is not None else None,
+        "full_price": str(item.full_price) if item.full_price is not None else None,
+        "supports_portions": item.supports_portions,
+        "average_rating": item.average_rating,
+        "rating_count": item.rating_count,
         "description": item.description,
         "image_url": item.image_url,
     }
@@ -155,9 +166,12 @@ def serialize_order_item(item):
         "id": item.id,
         "menu_item_id": item.menu_item_id,
         "name": item.menu_item.name,
+        "portion": item.portion,
+        "portion_label": item.get_portion_display(),
         "quantity": item.quantity,
         "unit_price": str(item.unit_price),
         "line_total": str(item.line_total),
+        "rating": item.rating,
     }
 
 
@@ -173,16 +187,46 @@ def serialize_order(order):
         "grand_total": str(order.grand_total),
         "status": order.status,
         "status_label": order.get_status_display(),
+        "payment_method": order.payment_method,
+        "payment_method_label": order.get_payment_method_display(),
         "payment_status": order.payment_status,
         "payment_status_label": order.get_payment_status_display(),
         "payment_provider": order.payment_provider,
         "payment_reference": order.payment_reference,
+        "payment_due_at": order.payment_due_at.isoformat() if order.payment_due_at else None,
+        "confirmed_at": order.confirmed_at.isoformat() if order.confirmed_at else None,
+        "is_confirmed": order.is_confirmed,
         "item_count": order.item_count,
         "cook_prep_label": order.cook_prep_label,
         "created_at": order.created_at.isoformat(),
         "updated_at": order.updated_at.isoformat(),
         "items": [serialize_order_item(item) for item in order.items.all()],
     }
+
+
+def create_and_attach_razorpay_order_for_order(*, order, user):
+    if order.user_id != user.id:
+        raise Http404("Order not found.")
+
+    if order.payment_method != "razorpay":
+        raise ValidationError("This order is not set for online payment.")
+
+    if order.payment_status == "paid":
+        raise ValidationError("Order is already paid.")
+
+    sync_order_payment_state(order)
+    if order.payment_status == "failed":
+        raise ValidationError("Payment window expired. Choose cash on delivery or cancel the order.")
+
+    razorpay_order = create_razorpay_order(
+        amount_rupees=order.grand_total,
+        receipt=f"order-{order.id}",
+        notes={"order_id": str(order.id), "username": user.username},
+    )
+    order.payment_provider = "razorpay"
+    order.payment_reference = razorpay_order.get("id", "")
+    order.save(update_fields=["payment_provider", "payment_reference", "updated_at"])
+    return razorpay_order
 
 
 def build_paginated_response(page_obj, serializer):
@@ -214,23 +258,140 @@ def validate_receiver_details(receiver_name, receiver_phone, receiver_address):
     return errors
 
 
+def get_order_timeline(order):
+    if not order.confirmed_at:
+        return None
+
+    confirmed_at = order.confirmed_at
+    accept_deadline = confirmed_at + timedelta(minutes=AUTO_ACCEPT_MINUTES)
+    preparing_deadline = accept_deadline + timedelta(minutes=AUTO_PREPARING_MINUTES)
+    ready_deadline = preparing_deadline + timedelta(minutes=AUTO_READY_MINUTES)
+    return {
+        "confirmed_at": confirmed_at,
+        "accept_deadline": accept_deadline,
+        "preparing_deadline": preparing_deadline,
+        "ready_deadline": ready_deadline,
+    }
+
+
+def sync_order_payment_state(order, now=None):
+    current_time = now or timezone.now()
+    if (
+        order.requires_online_payment
+        and not order.is_confirmed
+        and order.payment_status == "pending"
+        and order.payment_due_at is not None
+        and current_time >= order.payment_due_at
+    ):
+        order.payment_status = "failed"
+        order.save(update_fields=["payment_status", "updated_at"])
+    return order
+
+
+def sync_order_workflow(order, now=None):
+    current_time = now or timezone.now()
+    sync_order_payment_state(order, now=current_time)
+
+    if not order.is_confirmed or order.status in {"completed", "cancelled"}:
+        return order
+
+    timeline = get_order_timeline(order)
+    if timeline is None:
+        return order
+
+    changed_fields = []
+
+    if current_time >= timeline["ready_deadline"]:
+        if order.status != "completed":
+            order.status = "completed"
+            changed_fields.extend(["status", "updated_at"])
+    elif current_time >= timeline["preparing_deadline"]:
+        if order.status != "ready":
+            order.status = "ready"
+            changed_fields.extend(["status", "updated_at"])
+    elif current_time >= timeline["accept_deadline"]:
+        if order.status != "preparing":
+            order.status = "preparing"
+            changed_fields.extend(["status", "updated_at"])
+        if order.cook_prep_minutes != AUTO_PREPARING_MINUTES:
+            order.cook_prep_minutes = AUTO_PREPARING_MINUTES
+            changed_fields.append("cook_prep_minutes")
+        if order.cook_extra_minutes != 0:
+            order.cook_extra_minutes = 0
+            changed_fields.append("cook_extra_minutes")
+        if order.cook_prep_time != f"{AUTO_PREPARING_MINUTES} min":
+            order.cook_prep_time = f"{AUTO_PREPARING_MINUTES} min"
+            changed_fields.append("cook_prep_time")
+        if order.cook_prep_started_at != timeline["accept_deadline"]:
+            order.cook_prep_started_at = timeline["accept_deadline"]
+            changed_fields.append("cook_prep_started_at")
+
+    if changed_fields:
+        order.save(update_fields=list(dict.fromkeys(changed_fields)))
+
+    return order
+
+
+def build_order_page_context(order):
+    timeline = get_order_timeline(order) if order else None
+    return {
+        "last_order": order,
+        "order_page_history_hours": ORDER_PAGE_HISTORY_HOURS,
+        "restaurant_phone_display": RESTAURANT_PHONE_DISPLAY,
+        "restaurant_phone_link": RESTAURANT_PHONE_LINK,
+        "razorpay_key_id": settings.RAZORPAY_KEY_ID,
+        "payment_window_minutes": PAYMENT_WINDOW_MINUTES,
+        "order_timeline": timeline,
+        "auto_accept_minutes": AUTO_ACCEPT_MINUTES,
+        "auto_preparing_minutes": AUTO_PREPARING_MINUTES,
+        "auto_ready_minutes": AUTO_READY_MINUTES,
+    }
+
+
+def make_cart_key(item_id, portion="full"):
+    return f"{item_id}:{portion or 'full'}"
+
+
+def parse_cart_key(cart_key):
+    raw_key = str(cart_key or "")
+    if ":" in raw_key:
+        item_id, portion = raw_key.split(":", 1)
+        return item_id, portion or "full"
+    return raw_key, "full"
+
+
+def get_item_cart_quantity(cart, item_id, portion="full"):
+    base_key = str(item_id)
+    portion_key = make_cart_key(item_id, portion)
+    if portion == "full":
+        return cart.get(portion_key, 0) + cart.get(base_key, 0)
+    return cart.get(portion_key, 0)
+
+
 def build_cart_items(cart):
-    item_ids = [int(item_id) for item_id in cart.keys()]
+    item_ids = []
+    for cart_key in cart.keys():
+        item_id, _ = parse_cart_key(cart_key)
+        item_ids.append(int(item_id))
     menu_items = MenuItem.objects.in_bulk(item_ids)
     cart_items = []
     subtotal = Decimal("0.00")
 
-    for item_id, quantity in cart.items():
+    for cart_key, quantity in cart.items():
+        item_id, portion = parse_cart_key(cart_key)
         menu_item = menu_items.get(int(item_id))
         if not menu_item:
             continue
 
-        unit_price = parse_price(menu_item.price)
+        unit_price = parse_price(menu_item.get_price_for_portion(portion))
         line_total = unit_price * quantity
         subtotal += line_total
         cart_items.append(
             {
                 "item": menu_item,
+                "cart_key": cart_key,
+                "portion": portion,
+                "portion_label": "Half" if portion == "half" else "Full",
                 "quantity": quantity,
                 "unit_price": unit_price,
                 "line_total": line_total,
@@ -364,7 +525,11 @@ def menu_view(request):
 
     grouped_menu = {}
     for item in items:
-        item.cart_quantity = cart.get(str(item.id), 0)
+        item.cart_quantities = {
+            "half": get_item_cart_quantity(cart, item.id, "half"),
+            "full": get_item_cart_quantity(cart, item.id, "full"),
+        }
+        item.cart_quantity = sum(item.cart_quantities.values())
         grouped_menu.setdefault(item.category, []).append(item)
 
     return render(request, 'menu.html', {
@@ -401,11 +566,16 @@ def cart_view(request):
         is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
         def cart_json_response(item=None):
-            item_key = str(item.pk) if item else request.POST.get("item_id", "")
+            portion = request.POST.get("item_portion", "full")
+            if item and not item.supports_portions:
+                item_key = str(item.pk)
+            else:
+                item_key = make_cart_key(item.pk, portion) if item else make_cart_key(request.POST.get("item_id", ""), portion)
             return JsonResponse(
                 {
                     "ok": True,
                     "item_name": item.name if item else "",
+                    "item_portion": portion,
                     "cart_count": sum(cart.values()),
                     "item_count": cart.get(item_key, 0),
                 }
@@ -413,7 +583,8 @@ def cart_view(request):
 
         if action == "add":
             item = get_object_or_404(MenuItem, pk=request.POST.get("item_id"))
-            item_key = str(item.pk)
+            portion = request.POST.get("item_portion", "full")
+            item_key = make_cart_key(item.pk, portion) if item.supports_portions else str(item.pk)
             cart[item_key] = cart.get(item_key, 0) + 1
             request.session["cart"] = cart
             request.session.modified = True
@@ -425,19 +596,31 @@ def cart_view(request):
             return redirect("cart_view")
 
         if action == "increase":
-            item_key = request.POST.get("item_id")
+            item_key = request.POST.get("item_key") or make_cart_key(request.POST.get("item_id"), request.POST.get("item_portion", "full"))
+            if item_key not in cart and ":" in item_key:
+                item_id, portion = parse_cart_key(item_key)
+                plain_key = str(item_id)
+                if portion == "full" and plain_key in cart:
+                    item_key = plain_key
             if item_key in cart:
                 cart[item_key] += 1
                 request.session["cart"] = cart
                 request.session.modified = True
             if is_ajax:
-                item = get_object_or_404(MenuItem, pk=item_key)
+                item_id, _ = parse_cart_key(item_key)
+                item = get_object_or_404(MenuItem, pk=item_id)
                 return cart_json_response(item)
             return redirect("cart_view")
 
         if action == "decrease":
-            item_key = request.POST.get("item_id")
-            item = get_object_or_404(MenuItem, pk=item_key)
+            item_key = request.POST.get("item_key") or make_cart_key(request.POST.get("item_id"), request.POST.get("item_portion", "full"))
+            if item_key not in cart and ":" in item_key:
+                item_id, portion = parse_cart_key(item_key)
+                plain_key = str(item_id)
+                if portion == "full" and plain_key in cart:
+                    item_key = plain_key
+            item_id, _ = parse_cart_key(item_key)
+            item = get_object_or_404(MenuItem, pk=item_id)
             if item_key in cart:
                 cart[item_key] -= 1
                 if cart[item_key] <= 0:
@@ -449,7 +632,12 @@ def cart_view(request):
             return redirect("cart_view")
 
         if action == "remove":
-            item_key = request.POST.get("item_id")
+            item_key = request.POST.get("item_key") or make_cart_key(request.POST.get("item_id"), request.POST.get("item_portion", "full"))
+            if item_key not in cart and ":" in item_key:
+                item_id, portion = parse_cart_key(item_key)
+                plain_key = str(item_id)
+                if portion == "full" and plain_key in cart:
+                    item_key = plain_key
             if item_key in cart:
                 del cart[item_key]
                 request.session["cart"] = cart
@@ -461,6 +649,7 @@ def cart_view(request):
             receiver_name = request.POST.get("receiver_name", "").strip()
             receiver_phone = request.POST.get("receiver_phone", "").strip()
             receiver_address = request.POST.get("receiver_address", "").strip()
+            payment_method = request.POST.get("payment_method", "cod").strip()
             receiver_errors = validate_receiver_details(
                 receiver_name,
                 receiver_phone,
@@ -476,6 +665,10 @@ def cart_view(request):
                     messages.error(request, error)
                 return redirect("cart_view")
 
+            if payment_method not in {"cod", "razorpay"}:
+                messages.error(request, "Choose a valid payment option.")
+                return redirect("cart_view")
+
             with transaction.atomic():
                 order = Order.objects.create(
                     user=request.user if request.user.is_authenticated else None,
@@ -486,12 +679,16 @@ def cart_view(request):
                     delivery_fee=DELIVERY_FEE if cart_items else Decimal("0.00"),
                     tax_amount=tax_amount,
                     grand_total=grand_total,
+                    payment_method=payment_method,
+                    payment_due_at=timezone.now() + timedelta(minutes=PAYMENT_WINDOW_MINUTES) if payment_method == "razorpay" else None,
+                    confirmed_at=timezone.now() if payment_method == "cod" else None,
                 )
 
                 for cart_item in cart_items:
                     OrderItem.objects.create(
                         order=order,
                         menu_item=cart_item["item"],
+                        portion=cart_item["portion"],
                         quantity=cart_item["quantity"],
                         unit_price=cart_item["unit_price"],
                         line_total=cart_item["line_total"],
@@ -500,11 +697,15 @@ def cart_view(request):
             request.session["last_order_id"] = order.id
             request.session["cart"] = {}
             request.session.modified = True
+            if payment_method == "cod":
+                messages.success(request, "Order placed with cash on delivery.")
+            else:
+                messages.info(request, f"Order created. Complete online payment within {PAYMENT_WINDOW_MINUTES} minutes.")
             return redirect("order_view")
 
     if request.GET.get("add"):
         item = get_object_or_404(MenuItem, pk=request.GET.get("add"))
-        item_key = str(item.pk)
+        item_key = make_cart_key(item.pk, request.GET.get("item_portion", "full")) if item.supports_portions else str(item.pk)
         cart[item_key] = cart.get(item_key, 0) + 1
         request.session["cart"] = cart
         request.session.modified = True
@@ -530,43 +731,95 @@ def cart_view(request):
 
 def order_view(request):
     order = get_visible_order_for_request(request, order_page_only=True)
-    return render(
-        request,
-        'order.html',
-        {
-            "last_order": order,
-            "order_page_history_hours": ORDER_PAGE_HISTORY_HOURS,
-            "restaurant_phone_display": RESTAURANT_PHONE_DISPLAY,
-            "restaurant_phone_link": RESTAURANT_PHONE_LINK,
-        },
-    )
+    if order:
+        sync_order_workflow(order)
+        order.refresh_from_db()
+    return render(request, 'order.html', build_order_page_context(order))
 
 
 def my_orders_view(request):
     if not request.user.is_authenticated:
         return redirect("/profile/?mode=login")
 
-    orders = (
+    queryset = (
         Order.objects.filter(user=request.user)
         .prefetch_related("items__menu_item")
         .order_by("-created_at")
     )
+    for order in queryset:
+        sync_order_workflow(order)
+    orders = Order.objects.filter(user=request.user).prefetch_related("items__menu_item").order_by("-created_at")
     page_obj = paginate_queryset(request, orders, default=8)
     return render(request, "my_orders.html", {"orders": page_obj.object_list, "page_obj": page_obj})
 
 
 def order_detail_view(request, order_id):
     order = get_visible_order_for_request(request, order_id=order_id)
-    return render(
-        request,
-        "order.html",
-        {
-            "last_order": order,
-            "is_detail_view": True,
-            "restaurant_phone_display": RESTAURANT_PHONE_DISPLAY,
-            "restaurant_phone_link": RESTAURANT_PHONE_LINK,
-        },
-    )
+    if order:
+        sync_order_workflow(order)
+        order.refresh_from_db()
+    context = build_order_page_context(order)
+    context["is_detail_view"] = True
+    return render(request, "order.html", context)
+
+
+@login_required(login_url="/profile/?mode=login")
+def order_payment_action_view(request, order_id):
+    if request.method != "POST":
+        return redirect("order_detail_view", order_id=order_id)
+
+    order = get_object_or_404(Order, pk=order_id, user=request.user)
+    sync_order_workflow(order)
+    order.refresh_from_db()
+    action = request.POST.get("action")
+
+    if order.is_confirmed:
+        messages.info(request, f"Order #{order.id} is already confirmed.")
+        return redirect("order_detail_view", order_id=order.id)
+
+    if action == "switch_to_cod":
+        order.payment_method = "cod"
+        order.payment_status = "pending"
+        order.payment_due_at = None
+        order.confirm_order(save=False)
+        order.save(update_fields=["payment_method", "payment_status", "payment_due_at", "confirmed_at", "updated_at"])
+        messages.success(request, f"Order #{order.id} switched to cash on delivery.")
+    elif action == "mark_payment_failed":
+        if order.payment_method == "razorpay" and order.payment_status == "pending":
+            order.mark_payment_failed("razorpay", order.payment_reference)
+        messages.info(request, f"Order #{order.id} payment marked failed.")
+    elif action == "cancel_order":
+        order.status = "cancelled"
+        order.save(update_fields=["status", "updated_at"])
+        messages.success(request, f"Order #{order.id} cancelled.")
+    else:
+        messages.error(request, "Unsupported order action.")
+
+    return redirect("order_detail_view", order_id=order.id)
+
+
+@login_required(login_url="/profile/?mode=login")
+def order_item_rating_view(request, order_id, item_id):
+    if request.method != "POST":
+        return redirect("order_detail_view", order_id=order_id)
+
+    order = get_object_or_404(Order.objects.prefetch_related("items__menu_item"), pk=order_id, user=request.user)
+    sync_order_workflow(order)
+    order.refresh_from_db()
+    if order.status != "completed":
+        messages.error(request, "Ratings are available only after delivery.")
+        return redirect("order_detail_view", order_id=order_id)
+
+    order_item = get_object_or_404(OrderItem, pk=item_id, order=order)
+    rating = parse_minutes(request.POST.get("rating"))
+    if rating not in {1, 2, 3, 4, 5}:
+        messages.error(request, "Choose a rating between 1 and 5 stars.")
+        return redirect("order_detail_view", order_id=order_id)
+
+    order_item.rating = rating
+    order_item.save(update_fields=["rating"])
+    messages.success(request, f"Rated {order_item.menu_item.name} with {rating} stars.")
+    return redirect("order_detail_view", order_id=order_id)
 
 
 def cook_orders_view(request):
@@ -579,6 +832,8 @@ def cook_orders_view(request):
 
         order = Order.objects.filter(pk=order_id).first()
         if order:
+            sync_order_workflow(order)
+            order.refresh_from_db()
             if action == "accept":
                 prep_minutes = parse_minutes(request.POST.get("prep_minutes"))
                 if prep_minutes not in INITIAL_PREP_MINUTE_OPTIONS:
@@ -630,9 +885,20 @@ def cook_orders_view(request):
         return redirect("cook_orders_view")
 
     today = timezone.localdate()
-    today_orders = Order.objects.filter(created_at__date=today).order_by("-created_at")
-    today_count = today_orders.count()
-    today_value = today_orders.aggregate(total=Sum('grand_total'))['total'] or 0
+    sync_queryset = Order.objects.filter(created_at__date=today, confirmed_at__isnull=False)
+    for order in sync_queryset:
+        sync_order_workflow(order)
+
+    today_orders = (
+        Order.objects.filter(created_at__date=today, confirmed_at__isnull=False)
+        .exclude(status__in=["completed", "cancelled"])
+        .order_by("-created_at")
+    )
+    today_orders = list(today_orders)
+    for order in today_orders:
+        order.workflow_timeline = get_order_timeline(order)
+    today_count = len(today_orders)
+    today_value = sum((order.grand_total for order in today_orders), Decimal("0.00"))
 
     return render(
         request,
@@ -679,6 +945,9 @@ def my_orders_api_view(request):
     except JWTValidationError as exc:
         return json_error(str(exc), status=401)
 
+    queryset = Order.objects.filter(user=user).prefetch_related("items__menu_item")
+    for order in queryset:
+        sync_order_workflow(order)
     queryset = Order.objects.filter(user=user).prefetch_related("items__menu_item")
     status_filter = request.GET.get("status", "").strip()
     if status_filter:
@@ -756,23 +1025,53 @@ def razorpay_order_api_view(request):
         Order.objects.filter(user=user).prefetch_related("items__menu_item"),
         pk=payload.get("order_id"),
     )
-    if order.payment_status == "paid":
-        return json_error("Order is already paid.", status=409)
 
     try:
-        razorpay_order = create_razorpay_order(
-            amount_rupees=order.grand_total,
-            receipt=f"order-{order.id}",
-            notes={"order_id": str(order.id), "username": user.username},
-        )
+        razorpay_order = create_and_attach_razorpay_order_for_order(order=order, user=user)
+    except ValidationError as exc:
+        return json_error(str(exc), status=409)
     except RazorpayConfigurationError as exc:
         return json_error(str(exc), status=503)
     except RazorpayAPIError as exc:
         return json_error(str(exc), status=502)
 
-    order.payment_provider = "razorpay"
-    order.payment_reference = razorpay_order.get("id", "")
-    order.save(update_fields=["payment_provider", "payment_reference", "updated_at"])
+    return JsonResponse(
+        {
+            "ok": True,
+            "razorpay_order": razorpay_order,
+            "order": serialize_order(order),
+        }
+    )
+
+
+@login_required(login_url="/profile/?mode=login")
+@rate_limit(
+    key_prefix="razorpay-order-create-session",
+    limit=PAYMENT_RATE_LIMIT_COUNT,
+    window_seconds=PAYMENT_RATE_LIMIT_WINDOW_SECONDS,
+)
+def razorpay_order_session_view(request):
+    if request.method != "POST":
+        return json_error("Only POST is allowed.", status=405)
+
+    try:
+        payload = get_json_payload(request)
+    except ValidationError as exc:
+        return json_error(str(exc), status=400)
+
+    order = get_object_or_404(
+        Order.objects.filter(user=request.user).prefetch_related("items__menu_item"),
+        pk=payload.get("order_id"),
+    )
+
+    try:
+        razorpay_order = create_and_attach_razorpay_order_for_order(order=order, user=request.user)
+    except ValidationError as exc:
+        return json_error(str(exc), status=409)
+    except RazorpayConfigurationError as exc:
+        return json_error(str(exc), status=503)
+    except RazorpayAPIError as exc:
+        return json_error(str(exc), status=502)
 
     return JsonResponse(
         {
@@ -840,11 +1139,9 @@ def razorpay_webhook_view(request):
         )
 
         if event_type == "payment.captured":
-            order.payment_status = "paid"
-            order.save(update_fields=["payment_status", "updated_at"])
+            order.mark_payment("razorpay", razorpay_order_id)
         elif event_type == "payment.failed":
-            order.payment_status = "failed"
-            order.save(update_fields=["payment_status", "updated_at"])
+            order.mark_payment_failed("razorpay", razorpay_order_id)
 
     return JsonResponse({"ok": True, "message": "Webhook processed."})
 

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Shubham's Kitchen
 
 Restaurant ordering system built with Django. The project now supports PostgreSQL through `DATABASE_URL` and is ready to be deployed with Postgres as the primary database.
@@ -83,3 +84,11 @@ python manage.py runserver
 - Order status transitions are validated
 - Razorpay order creation is available and webhook verification is supported at `/api/v1/payments/razorpay/webhook/`
 - OpenAPI schema and docs are available at `/api/schema/` and `/api/docs/`
+=======
+# Shubham-s-Kitchen-Online-Order-Managment
+A full-stack Restaurant Management System that enables users to browse menus, view items, and place orders online. Built with React, Python (Flask/Django), REST APIs, and PostgreSQL, it includes secure JWT authentication and an admin panel for managing menus and orders, ensuring a smooth and efficient user experience.
+
+
+https://github.com/user-attachments/assets/f47c9f00-64c7-4c38-94a4-0602430bea9f
+
+>>>>>>> 17e582f91a3484a0d9fe1d69d6035a25d6880bdf

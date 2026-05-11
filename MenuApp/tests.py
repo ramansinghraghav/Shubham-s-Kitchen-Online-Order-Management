@@ -330,6 +330,31 @@ class ViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(self.client.session["cart"], {})
 
+    def test_cart_view_places_pay_now_order_with_payment_window(self):
+        user = User.objects.create_user(username="paycartuser", password="StrongPass123!")
+        burger = MenuItem.objects.get(name="Burger")
+        session = self.client.session
+        session["cart"] = {str(burger.id): 1}
+        session.save()
+
+        self.client.force_login(user)
+        response = self.client.post(
+            reverse("cart_view"),
+            {
+                "action": "place_order",
+                "receiver_name": "Pay Receiver",
+                "receiver_phone": "9876543210",
+                "receiver_address": "Pay Street",
+                "payment_method": "razorpay",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        order = Order.objects.latest("id")
+        self.assertEqual(order.payment_method, "razorpay")
+        self.assertIsNone(order.confirmed_at)
+        self.assertIsNotNone(order.payment_due_at)
+
     def test_cart_view_rejects_blank_receiver_details(self):
         burger = MenuItem.objects.get(name="Burger")
         session = self.client.session
@@ -579,6 +604,7 @@ class ViewTests(TestCase):
             delivery_fee="35.00",
             tax_amount="4.50",
             grand_total="129.50",
+            confirmed_at=timezone.now(),
         )
         old_order = Order.objects.create(
             receiver_name="Old Receiver",
@@ -599,7 +625,7 @@ class ViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, f"Order #{today_order.id}")
         self.assertNotContains(response, f"Order #{old_order.id}")
-        self.assertContains(response, "Showing only today's orders")
+        self.assertContains(response, "Showing only today's confirmed active orders")
         self.assertContains(response, f'tel:{today_order.receiver_phone}', html=False)
 
     def test_cook_order_history_week_filter_excludes_today_and_old_orders(self):
@@ -1082,6 +1108,8 @@ class ViewTests(TestCase):
             delivery_fee="35.00",
             tax_amount="4.50",
             grand_total="129.50",
+            payment_method="razorpay",
+            payment_due_at=timezone.now() + timedelta(minutes=5),
         )
         OrderItem.objects.create(order=order, menu_item=burger, quantity=1, unit_price="90.00", line_total="90.00")
         mock_create_razorpay_order.return_value = {"id": "order_razorpay_123", "amount": 12950}
@@ -1104,6 +1132,65 @@ class ViewTests(TestCase):
         order.refresh_from_db()
         self.assertEqual(order.payment_provider, "razorpay")
         self.assertEqual(order.payment_reference, "order_razorpay_123")
+
+    @patch("MenuApp.views.create_razorpay_order")
+    def test_razorpay_order_session_view_creates_payment_order_for_logged_in_user(self, mock_create_razorpay_order):
+        user = User.objects.create_user(username="sessionpayuser", password="StrongPass123!")
+        burger = MenuItem.objects.get(name="Burger")
+        order = Order.objects.create(
+            user=user,
+            receiver_name="Receiver",
+            receiver_phone="9876543210",
+            receiver_address="Street 1",
+            subtotal="90.00",
+            delivery_fee="35.00",
+            tax_amount="4.50",
+            grand_total="129.50",
+            payment_method="razorpay",
+            payment_due_at=timezone.now() + timedelta(minutes=5),
+        )
+        OrderItem.objects.create(order=order, menu_item=burger, quantity=1, unit_price="90.00", line_total="90.00")
+        mock_create_razorpay_order.return_value = {"id": "order_session_123", "amount": 12950, "currency": "INR"}
+
+        self.client.login(username="sessionpayuser", password="StrongPass123!")
+        response = self.client.post(
+            reverse("razorpay_order_session_view"),
+            data=json.dumps({"order_id": order.id}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["ok"])
+        order.refresh_from_db()
+        self.assertEqual(order.payment_provider, "razorpay")
+        self.assertEqual(order.payment_reference, "order_session_123")
+
+    def test_order_payment_action_switches_failed_pay_now_order_to_cod(self):
+        user = User.objects.create_user(username="switchuser", password="StrongPass123!")
+        order = Order.objects.create(
+            user=user,
+            receiver_name="Receiver",
+            receiver_phone="9876543210",
+            receiver_address="Street 1",
+            subtotal="90.00",
+            delivery_fee="35.00",
+            tax_amount="4.50",
+            grand_total="129.50",
+            payment_method="razorpay",
+            payment_status="failed",
+        )
+
+        self.client.force_login(user)
+        response = self.client.post(
+            reverse("order_payment_action_view", args=[order.id]),
+            {"action": "switch_to_cod"},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        order.refresh_from_db()
+        self.assertEqual(order.payment_method, "cod")
+        self.assertIsNotNone(order.confirmed_at)
 
     @override_settings(RAZORPAY_WEBHOOK_SECRET="test-webhook-secret")
     def test_razorpay_webhook_marks_order_paid_and_is_idempotent(self):

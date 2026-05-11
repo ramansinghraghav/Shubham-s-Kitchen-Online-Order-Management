@@ -132,6 +132,17 @@
         border-radius: 1rem;
     }
 
+    .payment-option {
+        border: 1px solid #ead7ca;
+        border-radius: 0.9rem;
+        padding: 0.85rem 0.95rem;
+        background: #ffffff;
+    }
+
+    .payment-option + .payment-option {
+        margin-top: 0.75rem;
+    }
+
     .empty-state {
         border: 1px dashed #f1c8b0;
         border-radius: 1rem;
@@ -189,13 +200,23 @@
                                     <div class="flex-grow-1">
                                         <div class="d-flex justify-content-between gap-2">
                                             <h4 class="h6 mb-1">{{ item.name }}</h4>
-                                            <span class="price-pill">{{ item.price }}</span>
+                                            <span class="price-pill">₹ {% if item.supports_portions %}{{ item.full_price }}{% else %}{{ item.price }}{% endif %}</span>
                                         </div>
                                         <p class="text-muted small mb-3">{{ item.description|truncatechars:90 }}</p>
                                         <form method="post" class="mb-0">
                                             {% csrf_token %}
                                             <input type="hidden" name="action" value="add">
                                             <input type="hidden" name="item_id" value="{{ item.id }}">
+                                            {% if item.supports_portions %}
+                                            <div class="mb-2">
+                                                <select name="item_portion" class="form-select form-select-sm">
+                                                    <option value="half">₹ {{ item.half_price }} Half</option>
+                                                    <option value="full" selected>₹ {{ item.full_price }} Full</option>
+                                                </select>
+                                            </div>
+                                            {% else %}
+                                            <input type="hidden" name="item_portion" value="full">
+                                            {% endif %}
                                             <button type="submit" class="btn btn-warning btn-sm">Add to cart</button>
                                         </form>
                                     </div>
@@ -223,12 +244,15 @@
                             <div>
                                 <h3 class="h6 mb-1">{{ cart_item.item.name }}</h3>
                                 <div class="small text-muted">{{ cart_item.item.category }}</div>
+                                {% if cart_item.item.supports_portions %}
+                                <div class="small text-muted">{{ cart_item.portion_label }}</div>
+                                {% endif %}
                                 <div class="small fw-semibold mt-1">Rs. {{ cart_item.line_total }}</div>
                             </div>
                             <form method="post">
                                 {% csrf_token %}
                                 <input type="hidden" name="action" value="remove">
-                                <input type="hidden" name="item_id" value="{{ cart_item.item.id }}">
+                                <input type="hidden" name="item_key" value="{{ cart_item.cart_key }}">
                                 <button type="submit" class="btn btn-link btn-sm text-danger text-decoration-none p-0">Remove</button>
                             </form>
                         </div>
@@ -239,14 +263,14 @@
                                 <form method="post">
                                     {% csrf_token %}
                                     <input type="hidden" name="action" value="decrease">
-                                    <input type="hidden" name="item_id" value="{{ cart_item.item.id }}">
+                                    <input type="hidden" name="item_key" value="{{ cart_item.cart_key }}">
                                     <button type="submit" class="qty-btn">-</button>
                                 </form>
                                 <span class="fw-semibold px-2">{{ cart_item.quantity }}</span>
                                 <form method="post">
                                     {% csrf_token %}
                                     <input type="hidden" name="action" value="increase">
-                                    <input type="hidden" name="item_id" value="{{ cart_item.item.id }}">
+                                    <input type="hidden" name="item_key" value="{{ cart_item.cart_key }}">
                                     <button type="submit" class="qty-btn">+</button>
                                 </form>
                             </div>
@@ -283,6 +307,29 @@
                             </div>
                             <div class="mb-3">
                                 <textarea name="receiver_address" class="form-control" rows="3" placeholder="Delivery address" required></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <div class="payment-option">
+                                    <label class="form-check mb-0">
+                                        <input class="form-check-input" type="radio" name="payment_method" value="cod" checked>
+                                        <span class="form-check-label">
+                                            <strong>Cash on delivery</strong><br>
+                                            <span class="text-muted small">Order is confirmed immediately and paid when delivered.</span>
+                                        </span>
+                                    </label>
+                                </div>
+                                <div class="payment-option">
+                                    <label class="form-check mb-0">
+                                        <input class="form-check-input" type="radio" name="payment_method" value="razorpay" {% if not user.is_authenticated %}disabled{% endif %}>
+                                        <span class="form-check-label">
+                                            <strong>Pay now</strong><br>
+                                            <span class="text-muted small">Complete Razorpay payment within 5 minutes after placing the order.</span>
+                                        </span>
+                                    </label>
+                                </div>
+                                {% if not user.is_authenticated %}
+                                <div class="small text-muted mt-2">Login is required for online payment. Guests can still place cash on delivery orders.</div>
+                                {% endif %}
                             </div>
                             <button type="submit" class="btn btn-dark w-100">Place order</button>
                         </form>

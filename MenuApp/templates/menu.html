@@ -65,6 +65,24 @@
         color: #2a4365;
     }
 
+    .portion-select {
+        border-radius: 999px;
+        border: 1px solid #dbe4f0;
+        padding: 0.35rem 0.7rem;
+        font-size: 0.88rem;
+    }
+
+    .rating-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 0.82rem;
+        color: #b45309;
+        background: #fff7ed;
+        border-radius: 999px;
+        padding: 0.24rem 0.6rem;
+    }
+
     .item-cart-count {
         display: inline-flex;
         align-items: center;
@@ -200,9 +218,20 @@
                     <div class="card-body menu-card-body d-flex flex-column">
                         <h5 class="menu-card-title">{{ item.name }}</h5>
                         <p class="menu-card-subtitle">{{ item.description }}</p>
+                        {% if item.average_rating %}
+                        <div class="rating-badge mb-2">★ {{ item.average_rating }} / 5{% if item.rating_count %} ({{ item.rating_count }}){% endif %}</div>
+                        {% endif %}
                         <div class="d-flex justify-content-between align-items-center mt-auto">
                             <div class="d-flex flex-column align-items-start gap-2">
-                                <span class="menu-card-price">{{ item.price }}</span>
+                                {% if item.supports_portions %}
+                                <select class="portion-select" data-portion-select="{{ item.id }}">
+                                    <option value="half" data-price="{{ item.half_price }}" data-count="{{ item.cart_quantities.half }}">₹ {{ item.half_price }} Half</option>
+                                    <option value="full" data-price="{{ item.full_price }}" data-count="{{ item.cart_quantities.full }}" selected>₹ {{ item.full_price }} Full</option>
+                                </select>
+                                <span class="menu-card-price" data-price-label="{{ item.id }}">₹ {{ item.full_price }}</span>
+                                {% else %}
+                                <span class="menu-card-price" data-price-label="{{ item.id }}">₹ {{ item.price }}</span>
+                                {% endif %}
                                 <span class="item-cart-count {% if item.cart_quantity == 0 %}d-none{% endif %}" data-item-count="{{ item.id }}">
                                     In cart: <span class="item-cart-count-value">{{ item.cart_quantity }}</span>
                                 </span>
@@ -267,6 +296,7 @@
     const navCartCount = document.getElementById('nav-cart-count');
     const csrfToken = document.getElementById('menu-csrf-token').value;
     const qtyButtons = document.querySelectorAll('.menu-qty-action');
+    const portionSelects = document.querySelectorAll('[data-portion-select]');
 
     function showCartAlert(itemName) {
         menuCartAlert.textContent = `${itemName} added to cart successfully.`;
@@ -275,6 +305,11 @@
         showCartAlert.timeoutId = window.setTimeout(() => {
             menuCartAlert.classList.add('d-none');
         }, 1800);
+    }
+
+    function getSelectedPortion(itemId) {
+        const select = document.querySelector(`[data-portion-select="${itemId}"]`);
+        return select ? select.value : 'full';
     }
 
     function updateItemCount(itemId, itemCount) {
@@ -288,6 +323,18 @@
         if (value) {
             value.textContent = itemCount;
         }
+    }
+
+    function syncPortionDisplay(itemId) {
+        const select = document.querySelector(`[data-portion-select="${itemId}"]`);
+        const priceLabel = document.querySelector(`[data-price-label="${itemId}"]`);
+        if (!select || !priceLabel) {
+            return;
+        }
+        const option = select.options[select.selectedIndex];
+        priceLabel.textContent = `₹ ${option.dataset.price}`;
+        updateItemCount(itemId, Number(option.dataset.count || 0));
+        updateMenuQuantity(itemId, Number(option.dataset.count || 0));
     }
 
     function updateMenuQuantity(itemId, itemCount) {
@@ -310,9 +357,11 @@
     }
 
     async function updateMenuCart(itemId, action) {
+        const portion = getSelectedPortion(itemId);
         const formData = new FormData();
         formData.append('action', action);
         formData.append('item_id', itemId);
+        formData.append('item_portion', portion);
         formData.append('next_url', 'menu');
 
         const response = await fetch('/cart/', {
@@ -341,6 +390,13 @@
                 const data = await updateMenuCart(itemId, action);
 
                 navCartCount.textContent = data.cart_count;
+                const select = document.querySelector(`[data-portion-select="${itemId}"]`);
+                if (select) {
+                    const option = Array.from(select.options).find((entry) => entry.value === data.item_portion);
+                    if (option) {
+                        option.dataset.count = data.item_count;
+                    }
+                }
                 updateItemCount(itemId, data.item_count);
                 updateMenuQuantity(itemId, data.item_count);
 
@@ -351,6 +407,13 @@
                 showCartError();
             }
         });
+    });
+
+    portionSelects.forEach((select) => {
+        select.addEventListener('change', () => {
+            syncPortionDisplay(select.dataset.portionSelect);
+        });
+        syncPortionDisplay(select.dataset.portionSelect);
     });
 
     // Init

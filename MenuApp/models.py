@@ -8,10 +8,15 @@ from django.contrib.auth.models import User
 
 
 class MenuItem(models.Model):
-
+    PORTION_CHOICES = [
+        ("half", "Half"),
+        ("full", "Full"),
+    ]
     name = models.CharField(max_length=100)
     category = models.CharField(max_length=50)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    half_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    full_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     description = models.TextField()
     image = models.URLField(max_length=500, blank=True, null=True)  # Store image path or URL
 
@@ -35,6 +40,49 @@ class MenuItem(models.Model):
 
         return static(relative_path)
 
+    @property
+    def supports_portions(self):
+        return self.half_price is not None
+
+    @property
+    def display_price(self):
+        return self.full_price if self.full_price is not None else self.price
+
+    @property
+    def average_rating(self):
+        ratings = [item.rating for item in self.order_items.exclude(rating__isnull=True)]
+        if not ratings:
+            return None
+        return round(sum(ratings) / len(ratings), 1)
+
+    @property
+    def rating_count(self):
+        return self.order_items.exclude(rating__isnull=True).count()
+
+    def get_price_for_portion(self, portion):
+        if self.supports_portions:
+            if portion == "half":
+                return self.half_price
+            return self.full_price if self.full_price is not None else self.price
+        return self.full_price if self.full_price is not None else self.price
+
+    def clean(self):
+        errors = {}
+        effective_full_price = self.full_price if self.full_price is not None else self.price
+        if effective_full_price is None:
+            errors["full_price"] = "Full price is required."
+        if self.half_price is not None and effective_full_price is not None and self.half_price >= effective_full_price:
+            errors["half_price"] = "Half price must be lower than full price."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.full_price is None:
+            self.full_price = self.price
+        self.price = self.full_price
+        self.clean()
+        return super().save(*args, **kwargs)
+
 
 class Profile(models.Model):
     user = models.OneToOneField(User, related_name='profile', on_delete=models.CASCADE)
@@ -57,6 +105,10 @@ class Profile(models.Model):
 
 
 class Order(models.Model):
+    PAYMENT_METHOD_CHOICES = [
+        ("cod", "Cash on delivery"),
+        ("razorpay", "Pay now"),
+    ]
     STATUS_CHOICES = [
         ("pending", "Pending"),
         ("accepted", "Accepted"),
@@ -88,10 +140,13 @@ class Order(models.Model):
     delivery_fee = models.DecimalField(max_digits=10, decimal_places=2)
     tax_amount = models.DecimalField(max_digits=10, decimal_places=2)
     grand_total = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default="cod")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default="pending")
     payment_provider = models.CharField(max_length=30, blank=True)
     payment_reference = models.CharField(max_length=100, blank=True, db_index=True)
+    payment_due_at = models.DateTimeField(blank=True, null=True)
+    confirmed_at = models.DateTimeField(blank=True, null=True)
     notes = models.TextField(blank=True)
     cook_prep_time = models.CharField(max_length=50, blank=True, null=True)
     cook_prep_minutes = models.PositiveIntegerField(blank=True, null=True)
@@ -113,6 +168,36 @@ class Order(models.Model):
     @property
     def item_count(self):
         return sum(item.quantity for item in self.items.all())
+
+    @property
+    def is_confirmed(self):
+        return self.confirmed_at is not None
+
+    @property
+    def requires_online_payment(self):
+        return self.payment_method == "razorpay"
+
+    @property
+    def is_payment_expired(self):
+        return self.requires_online_payment and self.payment_status != "paid" and self.payment_due_at is not None
+
+    @property
+    def cook_timeline_end(self):
+        if not self.confirmed_at or self.status in {"completed", "cancelled"}:
+            return None
+        return self.confirmed_at + timedelta(minutes=30)
+
+    def confirm_order(self, *, save=True, timestamp=None):
+        from django.utils import timezone
+
+        confirmed_time = timestamp or timezone.now()
+        self.confirmed_at = confirmed_time
+        if self.payment_method == "cod":
+            self.payment_status = "pending"
+        elif self.payment_status != "paid":
+            self.payment_status = "paid"
+        if save:
+            self.save(update_fields=["confirmed_at", "payment_status", "updated_at"])
 
     @property
     def total_prep_minutes(self):
@@ -195,8 +280,20 @@ class Order(models.Model):
         self.payment_provider = provider
         self.payment_reference = reference
         self.payment_status = "paid"
+        self.payment_method = "razorpay"
+        if self.confirmed_at is None:
+            self.confirm_order(save=False)
         if save:
-            self.save(update_fields=["payment_provider", "payment_reference", "payment_status", "updated_at"])
+            self.save(
+                update_fields=[
+                    "payment_provider",
+                    "payment_reference",
+                    "payment_status",
+                    "payment_method",
+                    "confirmed_at",
+                    "updated_at",
+                ]
+            )
 
     def mark_payment_failed(self, provider, reference="", *, save=True):
         self.payment_provider = provider
@@ -207,11 +304,17 @@ class Order(models.Model):
 
 
 class OrderItem(models.Model):
+    PORTION_CHOICES = [
+        ("full", "Full"),
+        ("half", "Half"),
+    ]
     order = models.ForeignKey(Order, related_name="items", on_delete=models.CASCADE)
-    menu_item = models.ForeignKey(MenuItem, on_delete=models.PROTECT)
+    menu_item = models.ForeignKey(MenuItem, on_delete=models.PROTECT, related_name="order_items")
     quantity = models.PositiveIntegerField(default=1)
+    portion = models.CharField(max_length=10, choices=PORTION_CHOICES, default="full")
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     line_total = models.DecimalField(max_digits=10, decimal_places=2)
+    rating = models.PositiveSmallIntegerField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.menu_item.name} x {self.quantity}"
@@ -227,6 +330,8 @@ class OrderItem(models.Model):
         errors = {}
         if self.quantity <= 0:
             errors["quantity"] = "Quantity must be greater than zero."
+        if self.rating is not None and self.rating not in {1, 2, 3, 4, 5}:
+            errors["rating"] = "Rating must be between 1 and 5 stars."
         expected_total = self.unit_price * self.quantity
         if self.line_total != expected_total:
             errors["line_total"] = "Line total must equal unit price multiplied by quantity."

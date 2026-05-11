@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 
-from .models import Profile
+from .models import MenuItem, Profile
 
 
 class SignUpForm(UserCreationForm):
@@ -79,4 +79,39 @@ class ProfileForm(forms.ModelForm):
         if not full_name:
             raise ValidationError("Full name is required.")
         return full_name
+
+
+class MenuItemAdminForm(forms.ModelForm):
+    full_price = forms.DecimalField(max_digits=10, decimal_places=2, required=True, label="Full Price")
+    half_price = forms.DecimalField(max_digits=10, decimal_places=2, required=False, label="Half Price")
+
+    class Meta:
+        model = MenuItem
+        fields = ["name", "category", "description", "image", "full_price", "half_price"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields["full_price"].initial = self.instance.full_price if self.instance.full_price is not None else self.instance.price
+        for field in self.fields.values():
+            field.widget.attrs["class"] = "form-control"
+
+    def clean(self):
+        cleaned_data = super().clean()
+        full_price = cleaned_data.get("full_price")
+        half_price = cleaned_data.get("half_price")
+        if full_price is None:
+            self.add_error("full_price", "Full price is required.")
+        if half_price is not None and full_price is not None and half_price >= full_price:
+            self.add_error("half_price", "Half price must be lower than full price.")
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.full_price = self.cleaned_data["full_price"]
+        instance.price = self.cleaned_data["full_price"]
+        instance.half_price = self.cleaned_data.get("half_price")
+        if commit:
+            instance.save()
+        return instance
 

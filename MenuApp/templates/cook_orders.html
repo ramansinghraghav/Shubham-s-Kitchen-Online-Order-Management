@@ -29,6 +29,7 @@
     .action-form-inline { display: flex; gap: .75rem; flex-wrap: wrap; align-items: end; }
     .call-action { display: inline-flex; align-items: center; gap: .45rem; }
     .call-action svg { width: 1rem; height: 1rem; fill: currentColor; }
+    .timeline-note { font-size: 0.86rem; color: #6c757d; }
 </style>
 
 <div class="container cook-shell">
@@ -63,7 +64,7 @@
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <div>
                     <h1 class="h3 mb-0">Cook Dashboard</h1>
-                    <small class="text-muted">Showing only today's orders</small>
+                    <small class="text-muted">Showing only today's confirmed active orders</small>
                 </div>
                 <a href="/cook/orders/history/" class="btn btn-outline-dark btn-sm">Order history</a>
             </div>
@@ -89,29 +90,21 @@
                 <div class="col-12 order-meta"><strong>Address:</strong> {{ order.receiver_address }}</div>
             </div>
 
-            {% if order.cook_prep_end and order.cook_prep_started_at and order.status != 'completed' and order.status != 'cancelled' %}
+            {% if order.workflow_timeline %}
             <div class="mb-3">
-                <div class="small text-secondary mb-1">Prep ETA</div>
+                <div class="small text-secondary mb-1">Live workflow timer</div>
                 <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span class="text-success">{{ order.cook_prep_label }}</span>
-                    <strong class="cook-prep-countdown" data-start-time="{{ order.cook_prep_started_at|date:'c' }}" data-end-time="{{ order.cook_prep_end|date:'c' }}">Calculating...</strong>
+                    <span class="text-success cook-stage-label">Calculating stage...</span>
+                    <strong class="cook-prep-countdown"
+                            data-confirmed-time="{{ order.workflow_timeline.confirmed_at|date:'c' }}"
+                            data-accept-deadline="{{ order.workflow_timeline.accept_deadline|date:'c' }}"
+                            data-preparing-deadline="{{ order.workflow_timeline.preparing_deadline|date:'c' }}"
+                            data-ready-deadline="{{ order.workflow_timeline.ready_deadline|date:'c' }}">Calculating...</strong>
                 </div>
                 <div class="progress" style="height: 8px;">
                     <div class="progress-bar cook-progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar" style="width: 0%"></div>
                 </div>
-            </div>
-            {% elif order.status == 'completed' %}
-            <div class="mb-3">
-                <div class="small text-success">Order delivered.</div>
-            </div>
-            {% elif order.status == 'cancelled' %}
-            <div class="mb-3">
-                <div class="small text-danger">Order cancelled.</div>
-            </div>
-            {% elif order.cook_prep_label %}
-            <div class="mb-3">
-                <div class="small text-secondary mb-1">Prep time assigned</div>
-                <span class="text-success">{{ order.cook_prep_label }}</span>
+                <div class="timeline-note mt-2">First 5 min acceptance, next 15 min preparation, last 10 min ready to delivery.</div>
             </div>
             {% endif %}
 
@@ -205,14 +198,12 @@
                     <input type="hidden" name="action" value="delivered">
                     <button type="submit" class="btn btn-dark">Delivered</button>
                 </form>
-                {% else %}
-                <div class="order-meta">No further cook actions for this order.</div>
                 {% endif %}
             </div>
         </div>
     </div>
     {% empty %}
-    <div class="alert alert-info">No orders found yet.</div>
+    <div class="alert alert-info">No confirmed active orders found right now.</div>
     {% endfor %}
 </div>
 
@@ -229,24 +220,46 @@ function formatTime(seconds) {
 function startCookCountdown(elements) {
     const runs = [];
     elements.forEach(element => {
-        const endTime = new Date(element.dataset.endTime).getTime();
-        const startTime = new Date(element.dataset.startTime).getTime();
+        const confirmedTime = new Date(element.dataset.confirmedTime).getTime();
+        const acceptDeadline = new Date(element.dataset.acceptDeadline).getTime();
+        const preparingDeadline = new Date(element.dataset.preparingDeadline).getTime();
+        const readyDeadline = new Date(element.dataset.readyDeadline).getTime();
         const progressBar = element.closest('.cook-card-body').querySelector('.cook-progress-bar');
+        const stageLabel = element.closest('.cook-card-body').querySelector('.cook-stage-label');
 
         const update = () => {
             const now = Date.now();
-            const totalSeconds = Math.max(1, Math.floor((endTime - startTime) / 1000));
-            const remainingSeconds = Math.max(0, Math.floor((endTime - now) / 1000));
-            const elapsedSeconds = Math.max(0, totalSeconds - remainingSeconds);
+            const totalSeconds = Math.max(1, Math.floor((readyDeadline - confirmedTime) / 1000));
+            let stageEnd = acceptDeadline;
+            let stageText = 'Pending acceptance';
+
+            if (now >= readyDeadline) {
+                stageEnd = readyDeadline;
+                stageText = 'Delivered';
+            } else if (now >= preparingDeadline) {
+                stageEnd = readyDeadline;
+                stageText = 'Ready to delivery';
+            } else if (now >= acceptDeadline) {
+                stageEnd = preparingDeadline;
+                stageText = 'Preparing';
+            }
+
+            const remainingSeconds = Math.max(0, Math.floor((stageEnd - now) / 1000));
+            const elapsedSeconds = Math.max(0, totalSeconds - Math.max(0, Math.floor((readyDeadline - now) / 1000)));
             const percent = Math.min(100, Math.max(0, Math.round((elapsedSeconds / totalSeconds) * 100)));
 
-            if (remainingSeconds <= 0) {
-                element.textContent = 'Ready or overdue';
+            if (stageLabel) {
+                stageLabel.textContent = stageText;
+            }
+
+            if (now >= readyDeadline) {
+                element.textContent = 'Delivered';
                 if (progressBar) {
                     progressBar.style.width = '100%';
                     progressBar.classList.remove('bg-info');
                     progressBar.classList.add('bg-success');
                 }
+                clearInterval(intervalId);
             } else {
                 element.textContent = `Remaining: ${formatTime(remainingSeconds)}`;
                 if (progressBar) {

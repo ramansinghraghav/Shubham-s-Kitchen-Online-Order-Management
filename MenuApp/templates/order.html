@@ -52,6 +52,66 @@
     .status-chip.completed { background-color: #d4f4ff; color: #105b8b; }
     .status-chip.cancelled { background-color: #ffd8de; color: #8b1b26; }
 
+    .payment-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.35rem 0.8rem;
+        font-size: 0.76rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .payment-chip.pending { background: #fff4d6; color: #9a6700; }
+    .payment-chip.paid { background: #dcfce7; color: #166534; }
+    .payment-chip.failed { background: #ffe2e2; color: #b42318; }
+    .payment-chip.refunded { background: #e0f2fe; color: #075985; }
+
+    .payment-box {
+        margin-top: 1rem;
+        padding: 1rem;
+        border-radius: 1rem;
+        border: 1px solid #e5ecf8;
+        background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+    }
+
+    .payment-help {
+        font-size: 0.92rem;
+        color: #556073;
+    }
+
+    .payment-feedback:empty {
+        display: none;
+    }
+
+    .action-stack > * + * {
+        margin-top: 0.75rem;
+    }
+
+    .timeline-note {
+        padding: 0.9rem 1rem;
+        border-radius: 1rem;
+        background: #f8fbff;
+        border: 1px solid #d8e7ff;
+    }
+
+    .star-row {
+        display: inline-flex;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+    }
+
+    .star-btn {
+        border: 1px solid #f6c16b;
+        background: #fff7ed;
+        color: #b45309;
+        border-radius: 999px;
+        padding: 0.25rem 0.65rem;
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
     .order-item + .order-item {
         border-top: 1px dashed #e2eaf6;
         margin-top: 0.9rem;
@@ -131,30 +191,52 @@
                 </div>
 
                 <div class="d-flex flex-wrap justify-content-between gap-2 mb-3 text-muted">
-                    <div>Order #{{ last_order.id }} &middot; {{ last_order.item_count }} item{{ last_order.item_count|pluralize }} confirmed</div>
+                    <div>
+                        Order #{{ last_order.id }} &middot; {{ last_order.item_count }} item{{ last_order.item_count|pluralize }}
+                        {% if last_order.is_confirmed %}confirmed{% else %}awaiting confirmation{% endif %}
+                    </div>
                     <div>Placed on {{ last_order.created_at|date:'d M Y H:i' }}</div>
                 </div>
 
                 <div class="mb-3">
-                    <h4 class="h6 mb-2">Cook prep status</h4>
-                    {% if last_order.cook_prep_end and last_order.cook_prep_started_at and last_order.status != 'ready' and last_order.status != 'completed' and last_order.status != 'cancelled' %}
+                    <h4 class="h6 mb-2">Order workflow</h4>
+                    {% if not last_order.is_confirmed %}
+                        <div class="timeline-note">
+                            {% if last_order.payment_method == 'razorpay' and last_order.payment_status == 'pending' and last_order.payment_due_at %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="countdown-label">Complete payment in</span>
+                                <span class="countdown-value" id="payment-deadline-countdown" data-end-time="{{ last_order.payment_due_at|date:'c' }}">Calculating...</span>
+                            </div>
+                            <div class="small text-muted">This order is not sent to the cook until payment succeeds.</div>
+                            {% elif last_order.payment_method == 'razorpay' and last_order.payment_status == 'failed' %}
+                            <div class="small text-danger">Online payment was not completed in time. Choose cash on delivery or cancel the order.</div>
+                            {% else %}
+                            <div class="small text-muted">This order is waiting for payment confirmation.</div>
+                            {% endif %}
+                        </div>
+                    {% elif order_timeline and last_order.status != 'completed' and last_order.status != 'cancelled' %}
                         <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="countdown-label">Estimated:</span>
-                            <span class="countdown-value">{{ last_order.cook_prep_label }}</span>
+                            <span class="countdown-label">Current stage</span>
+                            <span class="countdown-value" id="user-workflow-stage">Calculating...</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span id="user-prep-countdown" data-start-time="{{ last_order.cook_prep_started_at|date:'c' }}" data-end-time="{{ last_order.cook_prep_end|date:'c' }}">Remaining: <strong>Calculating...</strong></span>
+                            <span id="user-workflow-countdown"
+                                  data-confirmed-time="{{ order_timeline.confirmed_at|date:'c' }}"
+                                  data-accept-deadline="{{ order_timeline.accept_deadline|date:'c' }}"
+                                  data-preparing-deadline="{{ order_timeline.preparing_deadline|date:'c' }}"
+                                  data-ready-deadline="{{ order_timeline.ready_deadline|date:'c' }}">Remaining: <strong>Calculating...</strong></span>
                             <span class="badge bg-info">{{ last_order.get_status_display }}</span>
                         </div>
                         <div class="progress-timer">
                             <div class="progress-bar bg-info" role="progressbar" style="width: 0%" aria-valuemin="0" aria-valuemax="100"></div>
                         </div>
+                        <div class="small text-muted mt-2">5 min acceptance, 15 min preparation, then 10 min ready-to-deliver.</div>
                     {% elif last_order.status == 'ready' %}
-                        <div class="small text-success">Your order is ready for pickup.</div>
+                        <div class="small text-success">Your order is ready for delivery.</div>
                     {% elif last_order.status == 'completed' %}
                         <div class="small text-success">Your order has been delivered.</div>
-                    {% elif last_order.cook_prep_label %}
-                        <div class="small text-info">{{ last_order.cook_prep_label }} assigned.</div>
+                    {% elif last_order.status == 'cancelled' %}
+                        <div class="small text-danger">This order was cancelled.</div>
                     {% else %}
                         <div class="small text-muted">Awaiting chef confirmation</div>
                     {% endif %}
@@ -165,7 +247,27 @@
                     <div>
                         <h2 class="h6 mb-1">{{ item.menu_item.name }}</h2>
                         <div class="small text-muted">{{ item.menu_item.category }}</div>
+                        {% if item.menu_item.supports_portions %}
+                        <div class="small text-muted">{{ item.get_portion_display }} portion</div>
+                        {% endif %}
                         <div class="small text-muted">Qty: {{ item.quantity }} x Rs. {{ item.unit_price }}</div>
+                        {% if last_order.status == 'completed' and last_order.user %}
+                            {% if item.rating %}
+                            <div class="small text-warning mt-2">Rated: {{ item.rating }}★</div>
+                            {% else %}
+                            <form method="post" action="/orders/{{ last_order.id }}/items/{{ item.id }}/rate/" class="mt-2">
+                                {% csrf_token %}
+                                <div class="star-row">
+                                    <span class="small text-muted me-2">Rate:</span>
+                                    <button type="submit" class="star-btn" name="rating" value="1">1★</button>
+                                    <button type="submit" class="star-btn" name="rating" value="2">2★</button>
+                                    <button type="submit" class="star-btn" name="rating" value="3">3★</button>
+                                    <button type="submit" class="star-btn" name="rating" value="4">4★</button>
+                                    <button type="submit" class="star-btn" name="rating" value="5">5★</button>
+                                </div>
+                            </form>
+                            {% endif %}
+                        {% endif %}
                     </div>
                     <div class="fw-semibold">Rs. {{ item.line_total }}</div>
                 </div>
@@ -192,6 +294,46 @@
                     <span>Total paid</span>
                     <span>Rs. {{ last_order.grand_total }}</span>
                 </div>
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <span class="text-muted">Payment method</span>
+                    <span class="fw-semibold">{{ last_order.get_payment_method_display }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <span class="text-muted">Payment status</span>
+                    <span class="payment-chip {{ last_order.payment_status }}">{{ last_order.get_payment_status_display }}</span>
+                </div>
+                {% if last_order.user and last_order.payment_method == 'razorpay' and not last_order.is_confirmed %}
+                <div
+                    class="payment-box"
+                    id="razorpay-payment-box"
+                    data-order-id="{{ last_order.id }}"
+                    data-amount="{{ last_order.grand_total }}"
+                    data-name="{{ last_order.receiver_name }}"
+                    data-phone="{{ last_order.receiver_phone }}"
+                >
+                    {% if last_order.payment_status == 'pending' and razorpay_key_id %}
+                    <p class="payment-help mb-3">Pay now to confirm the order. The cook will see it only after payment success.</p>
+                    <button type="button" class="btn btn-primary w-100" id="razorpay-pay-button">Pay with Razorpay</button>
+                    <div class="payment-feedback alert mt-3 mb-0" id="razorpay-payment-feedback" role="alert"></div>
+                    {% elif last_order.payment_status == 'failed' %}
+                    <div class="action-stack">
+                        <div class="alert alert-warning mb-0">Online payment is no longer active for this order.</div>
+                        <form method="post" action="/orders/{{ last_order.id }}/payment-action/">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="switch_to_cod">
+                            <button type="submit" class="btn btn-dark w-100">Switch to cash on delivery</button>
+                        </form>
+                        <form method="post" action="/orders/{{ last_order.id }}/payment-action/">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="cancel_order">
+                            <button type="submit" class="btn btn-outline-danger w-100">Cancel order</button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning mb-0">Razorpay is not configured yet. Add the Razorpay keys in server settings to enable online payment.</div>
+                    {% endif %}
+                </div>
+                {% endif %}
                 <a href="tel:{{ restaurant_phone_link }}" class="btn btn-success w-100 mt-3 call-action">
                     <svg viewBox="0 0 16 16" aria-hidden="true">
                         <path d="M3.654 1.328a.678.678 0 0 1 .737-.145l2.522 1.01c.294.118.445.44.35.743l-.547 1.75a.68.68 0 0 1-.645.48c-.15 0-.296-.05-.417-.142l-1.14-.855a11.72 11.72 0 0 0 5.516 5.516l.855-1.14a.68.68 0 0 1 .48-.645l1.75-.547a.678.678 0 0 1 .743.35l1.01 2.522a.678.678 0 0 1-.145.737l-1.2 1.2a1.745 1.745 0 0 1-1.808.42c-2.882-.96-5.53-3.607-6.49-6.49a1.745 1.745 0 0 1 .42-1.808z"/>
@@ -223,6 +365,9 @@
     {% endif %}
 </div>
 
+{% if last_order.user and last_order.payment_method == 'razorpay' and not last_order.is_confirmed and last_order.payment_status == 'pending' and razorpay_key_id %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+{% endif %}
 <script>
 function formatTime(seconds) {
     const h = Math.floor(seconds / 3600);
@@ -233,31 +378,78 @@ function formatTime(seconds) {
         .join(':');
 }
 
-function startCountdown(element) {
+function startPaymentDeadlineCountdown(element) {
     const endTime = new Date(element.dataset.endTime).getTime();
-    const startTime = new Date(element.dataset.startTime).getTime();
-    const progressBar = element.closest('.order-card').querySelector('.progress-bar');
-
-    if (isNaN(endTime) || isNaN(startTime)) {
+    if (isNaN(endTime)) {
         element.textContent = 'Invalid timer';
         return;
     }
 
-    const totalSeconds = Math.max(1, Math.floor((endTime - startTime) / 1000));
-
     const update = () => {
         const now = Date.now();
         const remainingSeconds = Math.max(0, Math.floor((endTime - now) / 1000));
-        const elapsedSeconds = Math.max(0, totalSeconds - remainingSeconds);
+        if (remainingSeconds <= 0) {
+            element.textContent = '00:00:00';
+            window.setTimeout(function () {
+                window.location.reload();
+            }, 1200);
+            clearInterval(intervalId);
+            return;
+        }
+        element.textContent = formatTime(remainingSeconds);
+    };
+
+    update();
+    const intervalId = setInterval(update, 1000);
+}
+
+function startWorkflowCountdown(element) {
+    const confirmedTime = new Date(element.dataset.confirmedTime).getTime();
+    const acceptDeadline = new Date(element.dataset.acceptDeadline).getTime();
+    const preparingDeadline = new Date(element.dataset.preparingDeadline).getTime();
+    const readyDeadline = new Date(element.dataset.readyDeadline).getTime();
+    const progressBar = element.closest('.order-card').querySelector('.progress-bar');
+    const stageEl = document.getElementById('user-workflow-stage');
+
+    if ([confirmedTime, acceptDeadline, preparingDeadline, readyDeadline].some(Number.isNaN)) {
+        element.textContent = 'Invalid timer';
+        return;
+    }
+
+    const totalSeconds = Math.max(1, Math.floor((readyDeadline - confirmedTime) / 1000));
+    const update = () => {
+        const now = Date.now();
+        let stage = 'Waiting for cook acceptance';
+        let stageEnd = acceptDeadline;
+
+        if (now >= readyDeadline) {
+            stage = 'Delivered';
+            stageEnd = readyDeadline;
+        } else if (now >= preparingDeadline) {
+            stage = 'Ready for delivery';
+            stageEnd = readyDeadline;
+        } else if (now >= acceptDeadline) {
+            stage = 'Preparing';
+            stageEnd = preparingDeadline;
+        }
+
+        const remainingSeconds = Math.max(0, Math.floor((stageEnd - now) / 1000));
+        const elapsedSeconds = Math.max(0, totalSeconds - Math.max(0, Math.floor((readyDeadline - now) / 1000)));
         const percent = Math.min(100, Math.round((elapsedSeconds / totalSeconds) * 100));
 
-        if (remainingSeconds <= 0) {
-            element.innerHTML = 'Ready or overdue';
+        if (stageEl) {
+            stageEl.textContent = stage;
+        }
+
+        if (now >= readyDeadline) {
+            element.innerHTML = 'Order delivered';
             if (progressBar) {
                 progressBar.style.width = '100%';
-                progressBar.classList.remove('bg-info');
-                progressBar.classList.add('bg-success');
+                progressBar.className = 'progress-bar bg-success';
             }
+            window.setTimeout(function () {
+                window.location.reload();
+            }, 1500);
             clearInterval(intervalId);
             return;
         }
@@ -265,13 +457,7 @@ function startCountdown(element) {
         element.innerHTML = `Remaining: <strong>${formatTime(remainingSeconds)}</strong>`;
         if (progressBar) {
             progressBar.style.width = `${percent}%`;
-            if (percent <= 40) {
-                progressBar.className = 'progress-bar bg-danger';
-            } else if (percent <= 75) {
-                progressBar.className = 'progress-bar bg-warning';
-            } else {
-                progressBar.className = 'progress-bar bg-success';
-            }
+            progressBar.className = 'progress-bar bg-info';
         }
     };
 
@@ -279,11 +465,145 @@ function startCountdown(element) {
     const intervalId = setInterval(update, 1000);
 }
 
-document.addEventListener('DOMContentLoaded', function () {
-    const timerEl = document.getElementById('user-prep-countdown');
-    if (timerEl) {
-        startCountdown(timerEl);
+function getCookie(name) {
+    const cookieValue = `; ${document.cookie}`;
+    const parts = cookieValue.split(`; ${name}=`);
+    if (parts.length === 2) {
+        return parts.pop().split(';').shift();
     }
+    return '';
+}
+
+async function postPaymentAction(orderId, action) {
+    const formData = new FormData();
+    formData.append('action', action);
+    const response = await fetch(`/orders/${orderId}/payment-action/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: formData,
+    });
+    if (!response.ok) {
+        throw new Error('Could not update payment state.');
+    }
+}
+
+function setPaymentFeedback(message, type) {
+    const feedbackEl = document.getElementById('razorpay-payment-feedback');
+    if (!feedbackEl) {
+        return;
+    }
+
+    feedbackEl.className = `payment-feedback alert mt-3 mb-0 alert-${type}`;
+    feedbackEl.textContent = message;
+}
+
+async function createRazorpayOrder(orderId) {
+    const response = await fetch('/payments/razorpay/order/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: JSON.stringify({ order_id: orderId }),
+    });
+    const payload = await response.json();
+
+    if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || 'Unable to start Razorpay payment.');
+    }
+
+    return payload;
+}
+
+function openRazorpayCheckout(payload, container) {
+    const razorpayOrder = payload.razorpay_order || {};
+    const orderData = payload.order || {};
+    const options = {
+        key: '{{ razorpay_key_id|escapejs }}',
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency || 'INR',
+        name: "Shubham's Kitchen",
+        description: `Order #${orderData.id}`,
+        order_id: razorpayOrder.id,
+        handler: function () {
+            setPaymentFeedback('Payment captured in Checkout. Refreshing order status now.', 'success');
+            window.setTimeout(function () {
+                window.location.reload();
+            }, 2000);
+        },
+        modal: {
+            ondismiss: function () {
+                setPaymentFeedback('Checkout closed. Your order is still pending payment.', 'warning');
+            },
+        },
+        prefill: {
+            name: container.dataset.name || '',
+            contact: container.dataset.phone || '',
+        },
+        notes: {
+            app_order_id: String(orderData.id || container.dataset.orderId || ''),
+        },
+        theme: {
+            color: '#0d6efd',
+        },
+    };
+
+    const razorpay = new window.Razorpay(options);
+    razorpay.on('payment.failed', async function () {
+        try {
+            await postPaymentAction(orderData.id || container.dataset.orderId, 'mark_payment_failed');
+        } catch (error) {
+            // fall through to refresh anyway
+        }
+        setPaymentFeedback('Payment failed. You can now switch this order to cash on delivery or cancel it.', 'danger');
+        window.setTimeout(function () {
+            window.location.reload();
+        }, 1200);
+    });
+    razorpay.open();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const paymentDeadlineEl = document.getElementById('payment-deadline-countdown');
+    if (paymentDeadlineEl) {
+        startPaymentDeadlineCountdown(paymentDeadlineEl);
+    }
+
+    const workflowEl = document.getElementById('user-workflow-countdown');
+    if (workflowEl) {
+        startWorkflowCountdown(workflowEl);
+    }
+
+    const paymentBox = document.getElementById('razorpay-payment-box');
+    const payButton = document.getElementById('razorpay-pay-button');
+    if (!paymentBox || !payButton) {
+        return;
+    }
+
+    payButton.addEventListener('click', async function () {
+        if (!window.Razorpay) {
+            setPaymentFeedback('Razorpay Checkout did not load. Refresh and try again.', 'danger');
+            return;
+        }
+
+        payButton.disabled = true;
+        const originalLabel = payButton.textContent;
+        payButton.textContent = 'Starting payment...';
+        setPaymentFeedback('Creating secure payment order...', 'info');
+
+        try {
+            const payload = await createRazorpayOrder(paymentBox.dataset.orderId);
+            setPaymentFeedback('Opening Razorpay Checkout...', 'info');
+            openRazorpayCheckout(payload, paymentBox);
+        } catch (error) {
+            setPaymentFeedback(error.message || 'Unable to start payment.', 'danger');
+        } finally {
+            payButton.disabled = false;
+            payButton.textContent = originalLabel;
+        }
+    });
 });
 </script>
 {% endblock %}
