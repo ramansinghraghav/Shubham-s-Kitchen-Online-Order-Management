@@ -330,6 +330,31 @@ class ViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(self.client.session["cart"], {})
 
+    def test_order_view_shows_order_confirmation_popup_after_order_placement(self):
+        burger = MenuItem.objects.get(name="Burger")
+        session = self.client.session
+        session["cart"] = {str(burger.id): 1}
+        session.save()
+
+        response = self.client.post(
+            reverse("cart_view"),
+            {
+                "action": "place_order",
+                "receiver_name": "Test Receiver",
+                "receiver_phone": "9876543210",
+                "receiver_address": "Test Street",
+            },
+            follow=True,
+        )
+
+        order = Order.objects.latest("id")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "order-confirmation-modal")
+        self.assertContains(response, f"Your order number is")
+        self.assertContains(response, f"#{order.id}")
+        self.assertContains(response, "Burger")
+        self.assertContains(response, "showBootstrapModal('order-confirmation-modal')")
+
     def test_cart_view_places_pay_now_order_with_payment_window(self):
         user = User.objects.create_user(username="paycartuser", password="StrongPass123!")
         burger = MenuItem.objects.get(name="Burger")
@@ -403,6 +428,36 @@ class ViewTests(TestCase):
         self.assertContains(response, "Total paid")
         self.assertContains(response, "Burger")
         self.assertContains(response, "Rs. 129.50")
+
+
+    def test_order_view_includes_razorpay_payment_confirmation_popup(self):
+        user = User.objects.create_user(username="razorpaymodal", password="StrongPass123!")
+        burger = MenuItem.objects.get(name="Burger")
+        order = Order.objects.create(
+            user=user,
+            receiver_name="Receiver",
+            receiver_phone="9876543210",
+            receiver_address="Street 1",
+            subtotal="90.00",
+            delivery_fee="35.00",
+            tax_amount="4.50",
+            grand_total="129.50",
+            payment_method="razorpay",
+            payment_status="pending",
+            payment_due_at=timezone.now() + timedelta(minutes=5),
+        )
+        OrderItem.objects.create(order=order, menu_item=burger, quantity=1, unit_price="90.00", line_total="90.00")
+        session = self.client.session
+        session["last_order_id"] = order.id
+        session.save()
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("order_view"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "payment-confirmation-modal")
+        self.assertContains(response, "Razorpay transaction ID")
+        self.assertContains(response, "razorpay_payment_id")
 
     def test_my_orders_view_lists_only_logged_in_users_orders(self):
         owner = User.objects.create_user(username="owner", password="StrongPass123!")
@@ -814,23 +869,21 @@ class ViewTests(TestCase):
             reverse("profile_view"),
             {
                 "action": "signup",
-                "username": "shubham",
                 "full_name": "Shubham Verma",
                 "phone": "9876543210",
                 "email": "shubham@example.com",
-                "address": "Indore, Madhya Pradesh",
                 "password1": "StrongPass123!",
                 "password2": "StrongPass123!",
             },
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(User.objects.filter(username="shubham").exists())
-        self.assertEqual(int(self.client.session["_auth_user_id"]), User.objects.get(username="shubham").id)
-        profile = Profile.objects.get(user__username="shubham")
+        self.assertTrue(User.objects.filter(username="9876543210").exists())
+        self.assertEqual(int(self.client.session["_auth_user_id"]), User.objects.get(username="9876543210").id)
+        profile = Profile.objects.get(user__username="9876543210")
         self.assertEqual(profile.full_name, "Shubham Verma")
         self.assertEqual(profile.phone, "9876543210")
-        self.assertEqual(profile.address, "Indore, Madhya Pradesh")
+        self.assertEqual(profile.address, "")
 
     def test_profile_signup_rejects_duplicate_email(self):
         User.objects.create_user(username="existing", password="StrongPass123!", email="same@example.com")
@@ -839,11 +892,9 @@ class ViewTests(TestCase):
             reverse("profile_view"),
             {
                 "action": "signup",
-                "username": "newuser",
                 "full_name": "New User",
                 "phone": "9876543210",
                 "email": "same@example.com",
-                "address": "Indore",
                 "password1": "StrongPass123!",
                 "password2": "StrongPass123!",
             },
@@ -851,7 +902,24 @@ class ViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "An account with this email already exists.")
-        self.assertFalse(User.objects.filter(username="newuser").exists())
+        self.assertFalse(User.objects.filter(username="9876543210").exists())
+
+
+    def test_profile_login_uses_mobile_number(self):
+        user = User.objects.create_user(username="shubham", password="StrongPass123!")
+        Profile.objects.create(user=user, full_name="Shubham Verma", phone="9876543210", address="")
+
+        response = self.client.post(
+            reverse("profile_view"),
+            {
+                "action": "login",
+                "phone": "9876543210",
+                "password": "StrongPass123!",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(int(self.client.session["_auth_user_id"]), user.id)
 
     def test_profile_view_shows_account_details_for_logged_in_user(self):
         user = User.objects.create_user(username="shubham", password="StrongPass123!")
@@ -927,11 +995,9 @@ class ViewTests(TestCase):
             reverse("jwt_signup_view"),
             data=json.dumps(
                 {
-                    "username": "jwtuser",
                     "full_name": "JWT User",
                     "email": "jwt@example.com",
                     "phone": "9876543210",
-                    "address": "Indore",
                     "password": "StrongPass123!",
                     "confirm_password": "StrongPass123!",
                 }
@@ -944,7 +1010,7 @@ class ViewTests(TestCase):
         self.assertTrue(body["ok"])
         self.assertIn("access", body["tokens"])
         self.assertIn("refresh", body["tokens"])
-        self.assertTrue(User.objects.filter(username="jwtuser").exists())
+        self.assertTrue(User.objects.filter(username="9876543210").exists())
 
     def test_jwt_login_and_me_view(self):
         user = User.objects.create_user(username="apiuser", password="StrongPass123!", email="api@example.com")
@@ -952,7 +1018,7 @@ class ViewTests(TestCase):
 
         login_response = self.client.post(
             reverse("jwt_login_view"),
-            data=json.dumps({"username": "apiuser", "password": "StrongPass123!"}),
+            data=json.dumps({"phone": "9999999999", "password": "StrongPass123!"}),
             content_type="application/json",
         )
 

@@ -7,7 +7,6 @@ from functools import wraps
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
@@ -19,7 +18,7 @@ from django.shortcuts import get_object_or_404, redirect, render, HttpResponse
 from django.views.decorators.http import require_GET
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-from .forms import SignUpForm, ProfileForm
+from .forms import MobileLoginForm, SignUpForm, ProfileForm
 from .jwt_auth import JWTValidationError, build_token_pair, get_user_from_token
 from .models import MenuItem, PaymentEvent, Profile, Order, OrderItem
 from .services.payments import (
@@ -332,7 +331,7 @@ def sync_order_workflow(order, now=None):
     return order
 
 
-def build_order_page_context(order):
+def build_order_page_context(order, *, show_order_confirmation=False):
     timeline = get_order_timeline(order) if order else None
     return {
         "last_order": order,
@@ -342,6 +341,7 @@ def build_order_page_context(order):
         "razorpay_key_id": settings.RAZORPAY_KEY_ID,
         "payment_window_minutes": PAYMENT_WINDOW_MINUTES,
         "order_timeline": timeline,
+        "show_order_confirmation": show_order_confirmation,
         "auto_accept_minutes": AUTO_ACCEPT_MINUTES,
         "auto_preparing_minutes": AUTO_PREPARING_MINUTES,
         "auto_ready_minutes": AUTO_READY_MINUTES,
@@ -695,6 +695,7 @@ def cart_view(request):
                     )
 
             request.session["last_order_id"] = order.id
+            request.session["show_order_confirmation_id"] = order.id
             request.session["cart"] = {}
             request.session.modified = True
             if payment_method == "cod":
@@ -731,10 +732,18 @@ def cart_view(request):
 
 def order_view(request):
     order = get_visible_order_for_request(request, order_page_only=True)
+    show_order_confirmation = False
     if order:
         sync_order_workflow(order)
         order.refresh_from_db()
-    return render(request, 'order.html', build_order_page_context(order))
+        show_order_confirmation = request.session.pop("show_order_confirmation_id", None) == order.id
+        if show_order_confirmation:
+            request.session.modified = True
+    return render(
+        request,
+        'order.html',
+        build_order_page_context(order, show_order_confirmation=show_order_confirmation),
+    )
 
 
 def my_orders_view(request):
@@ -1163,11 +1172,9 @@ def jwt_signup_view(request):
 
     signup_form = SignUpForm(
         {
-            "username": payload.get("username", ""),
             "full_name": payload.get("full_name", ""),
             "email": payload.get("email", ""),
             "phone": payload.get("phone", ""),
-            "address": payload.get("address", ""),
             "password1": payload.get("password", ""),
             "password2": payload.get("confirm_password", payload.get("password", "")),
         }
@@ -1198,6 +1205,14 @@ def jwt_signup_view(request):
     )
 
 
+def get_login_username(mobile):
+    mobile = (mobile or "").strip()
+    profile = Profile.objects.filter(phone__iexact=mobile).select_related("user").first()
+    if profile:
+        return profile.user.username
+    return mobile
+
+
 @csrf_exempt
 @rate_limit(
     key_prefix="auth-login",
@@ -1215,11 +1230,11 @@ def jwt_login_view(request):
 
     user = authenticate(
         request,
-        username=payload.get("username", "").strip(),
+        username=get_login_username(payload.get("phone", payload.get("username", ""))),
         password=payload.get("password", ""),
     )
     if user is None:
-        return json_error("Invalid username or password.", status=401)
+        return json_error("Invalid mobile number or password.", status=401)
 
     tokens = build_token_pair(user)
     profile = getattr(user, "profile", None)
@@ -1357,15 +1372,15 @@ def profile_view(request):
         )
 
     signup_form = SignUpForm()
-    login_form = AuthenticationForm(request)
+    login_form = MobileLoginForm(request)
     mode = request.GET.get("mode", "signup")
 
     if request.method == "POST":
         action = request.POST.get("action")
 
         if action == "signup":
-            signup_form = SignUpForm(request.POST, request.FILES)
-            login_form = AuthenticationForm(request)
+            signup_form = SignUpForm(request.POST)
+            login_form = MobileLoginForm(request)
             mode = "signup"
             if signup_form.is_valid():
                 user = signup_form.save()
@@ -1375,7 +1390,7 @@ def profile_view(request):
                 return redirect("home_view")
 
         if action == "login":
-            login_form = AuthenticationForm(request, data=request.POST)
+            login_form = MobileLoginForm(request, data=request.POST)
             signup_form = SignUpForm()
             mode = "login"
             if login_form.is_valid():

@@ -365,6 +365,61 @@
     {% endif %}
 </div>
 
+{% if last_order and show_order_confirmation %}
+<div class="modal fade" id="order-confirmation-modal" tabindex="-1" aria-labelledby="order-confirmation-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h2 class="modal-title h5" id="order-confirmation-title">Order placed successfully</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Your order number is <strong>#{{ last_order.id }}</strong>.</p>
+                <p class="text-muted small mb-3">Order item{{ last_order.item_count|pluralize }}:</p>
+                <ul class="list-group list-group-flush mb-3">
+                    {% for item in last_order.items.all %}
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span>{{ item.menu_item.name }}{% if item.menu_item.supports_portions %} ({{ item.get_portion_display }}){% endif %} x {{ item.quantity }}</span>
+                        <span class="fw-semibold">Rs. {{ item.line_total }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="d-flex justify-content-between fw-bold">
+                    <span>Total</span>
+                    <span>Rs. {{ last_order.grand_total }}</span>
+                </div>
+                {% if last_order.payment_method == 'razorpay' and last_order.payment_status == 'pending' %}
+                <div class="alert alert-info mt-3 mb-0">Please complete Razorpay payment to confirm this order.</div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if last_order %}
+<div class="modal fade" id="payment-confirmation-modal" tabindex="-1" aria-labelledby="payment-confirmation-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h2 class="modal-title h5" id="payment-confirmation-title">Payment confirmed</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Payment received for order <strong>#{{ last_order.id }}</strong>.</p>
+                <p class="mb-0">Razorpay transaction ID: <strong id="razorpay-transaction-id">-</strong></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="payment-confirmation-refresh-button">Refresh order status</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% if last_order.user and last_order.payment_method == 'razorpay' and not last_order.is_confirmed and last_order.payment_status == 'pending' and razorpay_key_id %}
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 {% endif %}
@@ -499,6 +554,30 @@ function setPaymentFeedback(message, type) {
     feedbackEl.textContent = message;
 }
 
+function showBootstrapModal(modalId) {
+    const modalEl = document.getElementById(modalId);
+    if (!modalEl) {
+        return;
+    }
+
+    if (window.bootstrap && window.bootstrap.Modal) {
+        window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        return;
+    }
+
+    modalEl.classList.add('show');
+    modalEl.style.display = 'block';
+    modalEl.removeAttribute('aria-hidden');
+}
+
+function showPaymentConfirmation(transactionId) {
+    const transactionEl = document.getElementById('razorpay-transaction-id');
+    if (transactionEl) {
+        transactionEl.textContent = transactionId || 'Not available';
+    }
+    showBootstrapModal('payment-confirmation-modal');
+}
+
 async function createRazorpayOrder(orderId) {
     const response = await fetch('/payments/razorpay/order/', {
         method: 'POST',
@@ -527,11 +606,10 @@ function openRazorpayCheckout(payload, container) {
         name: "Shubham's Kitchen",
         description: `Order #${orderData.id}`,
         order_id: razorpayOrder.id,
-        handler: function () {
-            setPaymentFeedback('Payment captured in Checkout. Refreshing order status now.', 'success');
-            window.setTimeout(function () {
-                window.location.reload();
-            }, 2000);
+        handler: function (response) {
+            const transactionId = response && response.razorpay_payment_id ? response.razorpay_payment_id : '';
+            setPaymentFeedback('Payment captured in Checkout. Refresh order status after confirmation.', 'success');
+            showPaymentConfirmation(transactionId);
         },
         modal: {
             ondismiss: function () {
@@ -566,6 +644,17 @@ function openRazorpayCheckout(payload, container) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    {% if show_order_confirmation %}
+    showBootstrapModal('order-confirmation-modal');
+    {% endif %}
+
+    const paymentRefreshButton = document.getElementById('payment-confirmation-refresh-button');
+    if (paymentRefreshButton) {
+        paymentRefreshButton.addEventListener('click', function () {
+            window.location.reload();
+        });
+    }
+
     const paymentDeadlineEl = document.getElementById('payment-deadline-countdown');
     if (paymentDeadlineEl) {
         startPaymentDeadlineCountdown(paymentDeadlineEl);

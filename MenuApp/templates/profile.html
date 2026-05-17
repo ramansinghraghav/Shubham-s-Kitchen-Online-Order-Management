@@ -358,15 +358,15 @@
                     <div class="auth-form-card">
                         <div class="auth-kicker">Welcome back</div>
                         <h2 class="h3 mb-2">Login</h2>
-                        <p class="text-muted mb-4">Sign in to track orders, manage your profile, and stay connected with Shubham's Kitchen.</p>
+                        <p class="text-muted mb-4">Sign in with your mobile number to track orders, manage your profile, and stay connected with Shubham's Kitchen.</p>
                         <form method="post" novalidate>
                             {% csrf_token %}
                             <input type="hidden" name="action" value="login">
                             {{ login_form.non_field_errors }}
                             <div class="mb-3">
-                                <label class="form-label">Username</label>
-                                {{ login_form.username }}
-                                <div class="text-danger small">{{ login_form.username.errors }}</div>
+                                <label class="form-label">Mobile number</label>
+                                {{ login_form.phone }}
+                                <div class="text-danger small">{{ login_form.phone.errors }}</div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Password</label>
@@ -380,17 +380,12 @@
                     <div class="auth-form-card">
                         <div class="auth-kicker">Join the kitchen</div>
                         <h2 class="h3 mb-2">Sign up</h2>
-                        <p class="text-muted mb-4">Create your Shubham's Kitchen account for faster checkout, saved details, and order tracking.</p>
-                        <form method="post" enctype="multipart/form-data" novalidate>
+                        <p class="text-muted mb-4">Create your Shubham's Kitchen account with your mobile number for faster checkout and order tracking.</p>
+                        <form method="post" novalidate>
                             {% csrf_token %}
                             <input type="hidden" name="action" value="signup">
                             {{ signup_form.non_field_errors }}
                             <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Username</label>
-                                    {{ signup_form.username }}
-                                    <div class="text-danger small">{{ signup_form.username.errors }}</div>
-                                </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Full name</label>
                                     {{ signup_form.full_name }}
@@ -405,16 +400,6 @@
                                     <label class="form-label">Email</label>
                                     {{ signup_form.email }}
                                     <div class="text-danger small">{{ signup_form.email.errors }}</div>
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Address</label>
-                                    {{ signup_form.address }}
-                                    <div class="text-danger small">{{ signup_form.address.errors }}</div>
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label">Profile photo</label>
-                                    {{ signup_form.profile_photo }}
-                                    <div class="text-danger small">{{ signup_form.profile_photo.errors }}</div>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Password</label>
