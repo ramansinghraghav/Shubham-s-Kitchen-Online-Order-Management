@@ -1,1 +1,1 @@
-web: gunicorn Skproject.wsgi:application
+﻿web: gunicorn Skproject.wsgi --log-file -
